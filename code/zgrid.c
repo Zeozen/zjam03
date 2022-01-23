@@ -4,16 +4,14 @@
 #include "zmath.h"
 #include "zgrid.h"
 
-zGrid* CreateGrid(u16 width, u16 height, i2 cell_size, i2 render_offset)
+zGrid* CreateGrid(u16 width, u16 height, u16 depth)
 {
 	zGrid* new_grid = malloc(sizeof(zGrid));
 
 	new_grid->width 	= width;
 	new_grid->height 	= height;
-	new_grid->cell_width = cell_size.x;
-	new_grid->cell_height = cell_size.y;
-	new_grid->cell_data = calloc(width*height, sizeof(u64));
-	new_grid->render_offset = render_offset;
+	new_grid->depth = depth;
+	new_grid->cell_data = calloc(width*height, sizeof(u8)*depth);
 	return new_grid;
 }
 
@@ -39,6 +37,28 @@ u8 ValidateCel(i2 cel, zGrid* grid)
 		return 0;
 }
 
+u32 CelToIdx(i2 cel, zGrid* grid)
+{
+	if (ValidateCel(cel, grid))
+		return cel.x + cel.y * grid->width;
+	else
+		return 0;
+}
+
+i2 IdxToCel( u32 index, zGrid* grid)
+{
+	if (index < grid->width * grid->height)
+	{
+		return make_i2(index % grid->width, index / grid->width);
+	}
+	else
+	{
+		return make_i2(0, 0);
+	}
+}
+
+/*
+
 //cel to
 i2 CelToPix(i2 cel, zGrid* grid)
 {
@@ -50,13 +70,7 @@ r2 CelToPos(i2 cel, zGrid* grid)
 	return PixToPos(CelToPix(cel, grid));
 }
 
-u32 CelToIdx(i2 cel, zGrid* grid)
-{
-	if (ValidateCel(cel, grid))
-		return cel.x + cel.y * grid->width;
-	else
-		return 0;
-}
+
 
 i2 PixToCel(i2 pix, zGrid* grid)
 {
@@ -77,17 +91,7 @@ u32 PosToIdx( r2 pos, zGrid* grid)
 	return CelToIdx(PosToCel(pos, grid), grid);
 }
 
-i2 IdxToCel( u32 index, zGrid* grid)
-{
-	if (index < grid->width * grid->height)
-	{
-		return make_i2(index % grid->width, index / grid->width);
-	}
-	else
-	{
-		return make_i2(0, 0);
-	}
-}
+
 
 i2 IdxToPix( u32 idx, zGrid* grid)
 {
@@ -98,3 +102,5 @@ r2 IdxToPos( u32 idx, zGrid* grid)
 {
 	return CelToPos(IdxToCel(idx, grid), grid);
 }
+
+*/

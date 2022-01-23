@@ -50,10 +50,10 @@ Viewport* CreateViewport(const char* window_title)
 	viewport->settings = 0;
 
 	printf("Initialising zSDL viewport...\n");
-	int windowscale = 1;
+	SetWindowScale(viewport, 1);
 	viewport->window =
 		SDL_CreateWindow(window_title, SDL_WINDOWPOS_CENTERED_DISPLAY(0), SDL_WINDOWPOS_CENTERED_DISPLAY(0),
-						 ZSDL_INTERNAL_WIDTH * windowscale, ZSDL_INTERNAL_HEIGHT * windowscale,
+						 ZSDL_INTERNAL_WIDTH * GetWindowScale(viewport), ZSDL_INTERNAL_HEIGHT * GetWindowScale(viewport),
 						 SDL_WINDOW_SHOWN | SDL_RENDERER_PRESENTVSYNC /* | SDL_WINDOW_INPUT_GRABBED */);
 	if (viewport->window == NULL)
 	{

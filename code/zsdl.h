@@ -49,9 +49,8 @@ typedef enum
 // bitpos   63                                                                            0
 // bytepos  ____8____ ____7____ ____6____ ____5____ ____4____ ____3____ ____1____ ____0____
 //          0000'0000 0000'0000 0000'0000 0000'0000 0000'0000 0000'0000 0000'0000 0000'0000
-#define ZSDL_SETTINGS_BIT_FULLSCREEN 0
 #define ZSDL_SETTINGS_BIT_SCANLINEFILTER 8
-#define ZSDL_SETTINGS_BYTE_WINDOWSCALE 8
+#define ZSDL_SETTINGS_BYTE_WINDOWSCALE 7
 typedef struct
 {
     SDL_Window*     window;

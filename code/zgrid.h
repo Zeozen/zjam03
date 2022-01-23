@@ -18,26 +18,25 @@ typedef struct
 {
     u16 width;      //x
     u16 height;     //y
-    u16 cell_width;  // in pixels
-    u16 cell_height;  // in pixels
-    i2 render_offset;
-    u64* cell_data;
+    u16 depth;      //z
+    u8* cell_data;
 } zGrid;
 
-zGrid*  CreateGrid  (u16 width, u16 height, i2 cell_size, i2 render_offset);
+zGrid* CreateGrid(u16 width, u16 height, u16 depth);
 void    FreeGrid    (zGrid* grid);
 
 u8 ValidateCel(i2 cel, zGrid* grid);
-
-i2  CelToPix(i2  cel, zGrid* grid);
 i2  IdxToCel(u32 idx, zGrid* grid);
+u32 CelToIdx(i2  cel, zGrid* grid);
+/*
+i2  CelToPix(i2  cel, zGrid* grid);
 i2  PosToCel(r2  pos, zGrid* grid);
 i2  PixToCel(i2  pix, zGrid* grid);
 i2  IdxToPix(u32 idx, zGrid* grid);
 r2  CelToPos(i2  cel, zGrid* grid);
 r2  IdxToPos(u32 idx, zGrid* grid);
-u32 CelToIdx(i2  cel, zGrid* grid);
 u32 PosToIdx(r2  pos, zGrid* grid);
+*/
 #define BITMASK_SPRITE_ROW 0xf0
 #define BITMASK_SPRITE_COL 0x0f
 
