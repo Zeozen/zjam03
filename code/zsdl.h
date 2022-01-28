@@ -50,7 +50,7 @@ typedef enum
 // bytepos  ____8____ ____7____ ____6____ ____5____ ____4____ ____3____ ____1____ ____0____
 //          0000'0000 0000'0000 0000'0000 0000'0000 0000'0000 0000'0000 0000'0000 0000'0000
 #define ZSDL_SETTINGS_BIT_SCANLINEFILTER 8
-#define ZSDL_SETTINGS_BYTE_WINDOWSCALE 7
+#define ZSDL_SETTINGS_BYTE_PIXELSCALE 6
 typedef struct
 {
     SDL_Window*     window;
@@ -58,22 +58,34 @@ typedef struct
     SDL_Renderer*   renderer;
     SDL_Texture*    render_layer[ZSDL_RENDERLAYERS_MAX];
     Camera*         camera;
+    SDL_Rect        screen;
     u64             settings;
 } Viewport;
 
 b8 SetupSDL();
 Viewport* CreateViewport(const char* window_title);
 void FreeViewport(Viewport* viewport);
-u8 ComputePixelScale(Viewport* viewport);
+void ComputePixelScale(Viewport* viewport);
+void CalculateScreen(Viewport* viewport);
 void ToggleFullscreen(Viewport* viewport);
-u8 GetWindowScale(Viewport* viewport);
-void SetWindowScale(Viewport* viewport, u8 new_scale);
+
 
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ VIEWPORT ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv SPEAKER vvvvvvvvvvvvvvvvvvvvvvvvvv*/
 
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ SPEAKER ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
+
+/*vvvvvvvvvvvvvvvvvvvvvvvvvv FONT vvvvvvvvvvvvvvvvvvvvvvvvvv*/
+#define ZFONT_WIDTH 16
+#define ZFONT_HEIGHT 6
+typedef struct
+{
+    SDL_Texture* glyphs;
+    i2 siz;
+    i2 spacing;
+} zFont;
+/*^^^^^^^^^^^^^^^^^^^^^^^^^^ FONT ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv ASSETBANK vvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #define ASSETBANK_TEXTURES_MAX 16
@@ -91,27 +103,27 @@ typedef struct
     Mix_Music* mus[ASSETBANK_MUSIC_MAX];
 	SDL_Cursor* cur[ASSETBANK_CURSORS_MAX];
 	SDL_Surface* sur[ASSETBANK_SURFACES_MAX];
-	//TTF_Font* fon[ASSETBANK_FONTS_MAX];
+	zFont* fon[ASSETBANK_FONTS_MAX];
 	char* str[ASSETBANK_STRINGS_MAX];
 } Assets;
 
 Assets* CreateAssets(Viewport* viewport);
 void FreeAssets(Assets* assets);
 void LoadSound(Assets* assets, i32 identifier, const char* path);
-void FreeSound(Assets* assets, i32 identifier);
 void LoadSurface(Assets* assets, i32 identifier, const char* path);
 void LoadString(Assets* assets, i32 identifier, const char* path);
 void LoadTexture(Assets* assets, i32 identifier, SDL_Renderer* renderer, const char* path);
-void LoadCursor(Assets* assets, i32 surface_id, i32 cursor_id, i32 cursor_hotspot_x, i32 cursor_hotspot_y);
+void LoadCursor(Assets* assets, i32 identifier, i32 cursor_hotspot_x, i32 cursor_hotspot_y, const char* path);
+void LoadFont(Assets* assets, i32 identifier, SDL_Renderer* renderer, const char* path);
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ ASSETBANK ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv INPUT CONTROLLER vvvvvvvvvvvvvvvvvvvvvvvvvv*/
 // ACTION MASKS
 //  usage: if (Actions.player & ACTION(A_PLR_JMP) ) -> doJumpAction
-//  store current actions in lower 16 bits and previous actions in upper 16 bits
-#define ACTION(X) (1 << ((X)-1))
-#define ACTION_PRE(X) (1 << (((X)-1) + 16))
+//  store current actions in lower 32 bits and previous actions in upper 32 bits
+#define ACTION(X) ((u64)1 << ((X)-1))
+#define ACTION_PRE(X) ((u64)1 << (((X)-1) + 32))
 
 #define A_QUIT 1
 #define A_PLAY 2
@@ -129,10 +141,11 @@ void LoadCursor(Assets* assets, i32 surface_id, i32 cursor_id, i32 cursor_hotspo
 #define A_MOVD 14
 #define A_FSCR 15 // fullscreen
 #define A_ESC 16
+#define A_RSIZ 17 // resize window
 
 typedef struct 
 {
-    u32 actions;
+    u64 actions;
 	i2  move_vector;
 	i2  directional_vector;
 	i2  mouse_location;
@@ -143,9 +156,9 @@ void FreeController(Controller* controller);
 
 void CollectInput(Controller* c);
 i2 MouseLocation(Controller* c, Viewport* viewport);
-b8 ActionPressed(Controller* c, u32 action);
-b8 ActionReleased(Controller* c, u32 action);
-b8 ActionHeld(Controller* c, u32 action);
+b8 ActionPressed(Controller* c, u64 action);
+b8 ActionReleased(Controller* c, u64 action);
+b8 ActionHeld(Controller* c, u64 action);
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ INPUT CONTROLLER ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 

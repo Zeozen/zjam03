@@ -49,13 +49,14 @@ Viewport* CreateViewport(const char* window_title)
 {
 	Viewport* viewport = (Viewport*)malloc(sizeof(Viewport));
 	viewport->settings = 0;
+	viewport->screen = (SDL_Rect){0, 0, ZSDL_INTERNAL_WIDTH, ZSDL_INTERNAL_HEIGHT};
 
 	printf("Initialising zSDL viewport...\n");
-	SetWindowScale(viewport, 1);
+	//TODO: replace window scale with pixelscale in viewport struct, see rocketknight.render.c -> presentviewport and computepixelscale
 	viewport->window =
 		SDL_CreateWindow(window_title, SDL_WINDOWPOS_CENTERED_DISPLAY(0), SDL_WINDOWPOS_CENTERED_DISPLAY(0),
-						 ZSDL_INTERNAL_WIDTH * GetWindowScale(viewport), ZSDL_INTERNAL_HEIGHT * GetWindowScale(viewport),
-						 SDL_WINDOW_SHOWN | SDL_RENDERER_PRESENTVSYNC /* | SDL_WINDOW_INPUT_GRABBED */);
+						 ZSDL_INTERNAL_WIDTH, ZSDL_INTERNAL_HEIGHT,
+						 SDL_WINDOW_SHOWN | SDL_RENDERER_PRESENTVSYNC | SDL_WINDOW_RESIZABLE/* | SDL_WINDOW_INPUT_GRABBED */);
 	if (viewport->window == NULL)
 	{
 		printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
@@ -212,6 +213,15 @@ void FreeAssets(Assets* assets)
 			assets->str[i] = NULL;
 		}
 	}
+	for (i32 i = 0; i < ASSETBANK_FONTS_MAX; i++)
+	{
+		if (assets->fon[i] != NULL)
+		{
+			SDL_DestroyTexture(assets->fon[i]->glyphs);
+			free(assets->fon[i]);
+			assets->fon[i] = NULL;
+		}
+	}
 
     free(assets);
 	printf("assets freed\n");
@@ -358,36 +368,23 @@ void LoadSound(Assets* assets, i32 identifier, const char* path)
 	}
 }
 
-void FreeSound(Assets* assets, i32 identifier)
+void LoadCursor(Assets* assets, i32 identifier, i32 cursor_hotspot_x, i32 cursor_hotspot_y, const char* path)
 {
-	if ((assets->sfx[identifier] != NULL) || (identifier >= ASSETBANK_SOUNDS_MAX))
+	if ((assets->sur[identifier] != NULL) || (identifier >= ASSETBANK_SURFACES_MAX))
 	{
-		printf("LoadSound error: sound already empty at specified identifier%d, or identifier was invalid.\n",
-			   identifier);
-		return;
+		printf("LoadCursor error: specified identifier %d does not exist or was invalid\n", identifier);
 	}
 	else
 	{
-		Mix_FreeChunk(assets->sfx[identifier]);
-		assets->sfx[identifier] = NULL;
-	}
-}
-
-void LoadCursor(Assets* assets, i32 surface_id, i32 cursor_id, i32 cursor_hotspot_x, i32 cursor_hotspot_y)
-{
-	if ((assets->sur[surface_id] == NULL) || (surface_id >= ASSETBANK_SURFACES_MAX))
-	{
-		printf("LoadCursor error: specified surface_id %d does not exist or was invalid\n", surface_id);
-	}
-	else
-	{
-		if (cursor_id >= ASSETBANK_CURSORS_MAX)
+		if ((assets->cur[identifier] != NULL) || (identifier >= ASSETBANK_CURSORS_MAX))
 		{
-			printf("LoadCursor error: specified cursor id %d was invalid\n", cursor_id);
+			printf("LoadCursor error: specified cursor id %d was invalid \n", identifier);
 		}
 		else
 		{
-			assets->cur[cursor_id] = SDL_CreateColorCursor(assets->sur[surface_id], cursor_hotspot_x, cursor_hotspot_y);
+			LoadSurface(assets, identifier, path);
+			//TODO: replace function parameter cursor_hotspot with pixel encoded in bitmap (e.g. red pixel for hotspot), and process surface to only blit pixels other than hotspotpixel
+			assets->cur[identifier] = SDL_CreateColorCursor(assets->sur[identifier], cursor_hotspot_x, cursor_hotspot_y);
 		}
 	}
 }
@@ -405,6 +402,50 @@ void LoadString(Assets* assets, i32 identifier, const char* path)
 	}
 }
 
+void LoadFont(Assets* assets, i32 identifier, SDL_Renderer* renderer, const char* path)
+{
+	if ((assets->fon[identifier] != NULL) || (identifier >= ASSETBANK_FONTS_MAX))
+	{
+		printf("LoadString error: string at specified identifier %d already exists, or identifier was out of range.\n",
+			   identifier);
+	}
+	else
+	{
+		SDL_Texture* font_texture = NULL;
+
+		SDL_Surface* temp_surface = IMG_Load(path);
+		if (temp_surface == NULL)
+		{
+			printf("LoadTexture error: Unable to load image to surface at path %s! SDL_image Error: %s\n", path,
+				   IMG_GetError());
+			return;
+		}
+		else
+		{
+			// Create texture from surface pixels
+			font_texture = SDL_CreateTextureFromSurface(renderer, temp_surface);
+			if (font_texture == NULL)
+			{
+				printf("Unable to create texture from surface at path %s! SDL Error: %s\n", path, SDL_GetError());
+				return;
+			}
+			else
+			{
+				zFont* new_font = malloc(sizeof(zFont));
+				new_font->siz.x = temp_surface->w / 16;
+				new_font->siz.y = temp_surface->h / 6;
+				new_font->spacing = make_i2(0, 2); //TODO: WHAT TO DO HERE?
+				new_font->glyphs = font_texture;
+				assets->fon[identifier] = new_font;
+			}
+			// Get rid of old loaded surface
+			SDL_FreeSurface(temp_surface);
+			temp_surface = NULL;
+			font_texture = NULL;
+		}
+	}
+}
+
 
 
 
@@ -412,7 +453,7 @@ void LoadString(Assets* assets, i32 identifier, const char* path)
 @TODO: improve this function => make it more clear to read and understand, find better solution*/
 i2 MouseLocation(Controller* c, Viewport* viewport)
 {
-	u32 pixelsize				 = ComputePixelScale(viewport);
+	u32 pixelsize				 = GET8IN64(viewport->settings, ZSDL_SETTINGS_BYTE_PIXELSCALE);
 	i2 pixel_corrected_mouse_loc = c->mouse_location;
 	
 	if (SDL_GetWindowFlags(viewport->window) & SDL_WINDOW_FULLSCREEN)
@@ -541,7 +582,7 @@ char* ButtonStateName(E_BUTTON_STATE state)
 
 void CollectInput(Controller* c)
 {
-	c->actions <<= 16;
+	c->actions <<= 32;
 	SDL_PumpEvents();
 	const u8* keystate = SDL_GetKeyboardState(NULL);
 	u32 mousestate	   = SDL_GetMouseState(&c->mouse_location.x, &c->mouse_location.y);
@@ -583,20 +624,31 @@ void CollectInput(Controller* c)
 			else if (e.wheel.y < 0)
 				c->actions |= ACTION(A_WHLD);
 		}
+		if (e.type == SDL_WINDOWEVENT)
+		{
+			switch(e.window.event)
+			{
+				case SDL_WINDOWEVENT_RESIZED:
+					c->actions |= ACTION(A_RSIZ);
+				break;
+				default:
+				break;
+			}
+		}
 	}
 }
 
-b8 ActionPressed( Controller* c,  u32 action)
+b8 ActionPressed( Controller* c,  u64 action)
 {
 	return ((c->actions & ACTION(action)) && !(c->actions & ACTION_PRE(action)));
 }
 
-b8 ActionReleased( Controller* c,  u32 action)
+b8 ActionReleased( Controller* c,  u64 action)
 {
 	return (!(c->actions & ACTION(action)) && (c->actions & ACTION_PRE(action)));
 }
 
-b8 ActionHeld( Controller* c,  u32 action)
+b8 ActionHeld( Controller* c,  u64 action)
 {
 	return ((c->actions & ACTION(action)) && (c->actions & ACTION_PRE(action)));
 }
@@ -781,16 +833,6 @@ void ToggleFullscreen(Viewport* viewport)
 		SDL_SetWindowFullscreen(viewport->window, SDL_WINDOW_FULLSCREEN);
 }
 
-u8 GetWindowScale(Viewport* viewport)
-{
-	return GET8IN64(viewport->settings, ZSDL_SETTINGS_BYTE_WINDOWSCALE);
-}
-
-void SetWindowScale(Viewport* viewport, u8 new_scale)
-{
-	SET8IN64(new_scale, &viewport->settings, ZSDL_SETTINGS_BYTE_WINDOWSCALE);
-}
-
 
 void CleanRenderTargets(Viewport* viewport)
 {
@@ -815,13 +857,13 @@ void FinalizeRenderAndPresent(Viewport* viewport)
 	{
 		//if (i == ZSDL_RENDERLAYER_POST_PROCESS_A || i == ZSDL_RENDERLAYER_POST_PROCESS_B)
 		//	SDL_SetRenderDrawBlendMode(viewport->renderer, SDL_BLENDMODE_NONE);
-		SDL_RenderCopy(viewport->renderer, viewport->render_layer[i], NULL, NULL);
+		SDL_RenderCopy(viewport->renderer, viewport->render_layer[i], NULL, &viewport->screen);
 	}
     SDL_RenderPresent(viewport->renderer);
 	SDL_SetRenderDrawBlendMode(viewport->renderer, SDL_BLENDMODE_NONE);
 }
 
-u8 ComputePixelScale(Viewport* viewport)
+void ComputePixelScale(Viewport* viewport)
 {
 	i32 screen_width, screen_height;
 	if (SDL_GetWindowFlags(viewport->window) & SDL_WINDOW_FULLSCREEN)
@@ -850,7 +892,41 @@ u8 ComputePixelScale(Viewport* viewport)
 	}
 	u8 renderscale = (screen_width < screen_height) * (screen_width / ZSDL_INTERNAL_WIDTH) +
 					 (screen_width >= screen_height) * (screen_height / ZSDL_INTERNAL_HEIGHT);
-	return renderscale;
+	SET8IN64(renderscale, &viewport->settings, ZSDL_SETTINGS_BYTE_PIXELSCALE);
+}
+
+void CalculateScreen(Viewport* viewport)
+{
+	i32 screen_width, screen_height;
+	if (SDL_GetWindowFlags(viewport->window) & SDL_WINDOW_FULLSCREEN)
+	{
+		SDL_DisplayMode current;
+		int display_index = SDL_GetWindowDisplayIndex(viewport->window);
+		int success		  = SDL_GetCurrentDisplayMode(display_index, &current);
+
+		if (success != 0)
+		{
+			// In case of error...
+			SDL_Log("Could not get display mode for video display #%d: %s", display_index, SDL_GetError());
+		}
+		else
+		{
+			// On success, print the current display mode.
+			SDL_Log("Display #%d: current display mode is %dx%dpx @ %dhz.", display_index, current.w, current.h,
+					current.refresh_rate);
+			screen_height = current.h;
+			screen_width  = current.w;
+		}
+	}
+	else
+	{
+		SDL_GetWindowSize(viewport->window, &screen_width, &screen_height);
+	}
+	i32 pixelscale = GET8IN64(viewport->settings, ZSDL_SETTINGS_BYTE_PIXELSCALE);
+	viewport->screen.w = pixelscale * ZSDL_INTERNAL_WIDTH;
+	viewport->screen.h = pixelscale * ZSDL_INTERNAL_HEIGHT;
+	viewport->screen.x = (screen_width / 2);// - (viewport->screen.w / 2);
+	viewport->screen.x = (screen_height / 2) - (viewport->screen.h / 2);
 }
 
 void DrawNumber(Viewport* viewport, SDL_Texture* texture, u32 number, i2 size_src, i2 size_dst, i2 location, u32 max_digits)

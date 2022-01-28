@@ -237,7 +237,7 @@ char* PRINT_R2(const r2 a);
 #define B2(X)	((u32)3<<(X*2))
 #define B4(X)	((u32)15<<(X*4))
 #define B8(X)	((u32)UINT8_MAX<<(X*8))
-#define B8_64(X) ((u64)UINT8_MAX<<(X*8))
+#define B8_64(X) ((u64)0xff<<(X*8))
 #define B16(X)	((u32)UINT16_MAX<<(X*16))
 
 

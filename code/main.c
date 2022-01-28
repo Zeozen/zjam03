@@ -43,6 +43,12 @@ void mainloop(void *arg)
 		{
 			//gamestate_old = gamestate_now;
 			CollectInput(engine->controller);
+
+			if (ActionPressed(engine->controller, A_RSIZ))
+			{
+				ComputePixelScale(engine->viewport);
+				CalculateScreen(engine->viewport);
+			}
 			
 /* TRANSITION GAMESTATE BEGIN */
 		    if (engine->gamestate_now != engine->gamestate_new)
@@ -212,7 +218,11 @@ int main(int argc, char* argv[])
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv LOAD ASSETS vvvvvvvvvvvvvvvvvvvvvvvvvv*/
 //LoadTexture(x);
+LoadFont(assets, 0, viewport->renderer, "assets/font/font_zsys.png");
+LoadCursor(assets, CUR_POINTER, 0, 0, "assets/cursor/cur_zsys_pointer.png");
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ LOAD ASSETS ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
+
+SDL_SetCursor(assets->cur[CUR_POINTER]);
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv MAIN LOOP vvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #ifdef __EMSCRIPTEN__
