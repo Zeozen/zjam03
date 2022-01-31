@@ -48,20 +48,29 @@ void mainloop(void *arg)
 			{
 				ComputePixelScale(engine->viewport);
 				CalculateScreen(engine->viewport);
+				RefreshCursors(engine->viewport, engine->assets);
+			}
+			if (ActionPressed(engine->controller, A_FSCR))
+			{
+				ToggleFullscreen(engine->viewport);
+				ComputePixelScale(engine->viewport);
+				CalculateScreen(engine->viewport);
+				RefreshCursors(engine->viewport, engine->assets);
 			}
 			
 /* TRANSITION GAMESTATE BEGIN */
 		    if (engine->gamestate_now != engine->gamestate_new)
     		{
    				static b8 transition_allowed[NUMBER_OF_GAMESTATES*NUMBER_OF_GAMESTATES] = 
-    			{ //FROM	init    main    play    lose	vict	edit	exit	  TO
-                			1,      0,      0,      0,      0,		0,		0,		//init
-                			1,      1,      1,      1,      1,      1,		0,		//main
-                			0,      1,      1,      1,      1,      1,		0,		//play
-                			0,      0,      1,      1,      0,      0,		0,		//lose
-                			0,      0,      1,      0,      1,      0,		0,		//vict
-                			0,      1,      1,      0,      0,      1,		0,		//edit
-                			0,      1,      1,      1,      1,      1,		1		//exit
+    			{ //FROM	init    main    play	event,  lose	vict	edit	exit	  TO
+                			1,      0,      0,  	0,      0,      0,		0,		0,		//init
+                			1,      1,      1,  	0,      1,      1,      1,		0,		//main
+                			0,      1,      1,  	1,      1,      1,      1,		0,		//play
+                			0,      1,      1,  	1,      1,      1,      0,		0,		//event
+                			0,      0,      1,  	1,      1,      0,      0,		0,		//lose
+                			0,      0,      1,  	1,      0,      1,      0,		0,		//vict
+                			0,      1,      1,  	0,      0,      0,      1,		0,		//edit
+                			0,      1,      1,  	1,      1,      1,      1,		1		//exit
     			};
 
     			if (transition_allowed[engine->gamestate_now + engine->gamestate_new * NUMBER_OF_GAMESTATES])
@@ -79,9 +88,11 @@ printf("Game exiting state \t%s...\n", GamestateName(engine->gamestate_now));
 	            		    break;
 	            		case GAMESTATE_PLAY:
 	            		    break;
+	            		case GAMESTATE_EVNT:
+	            		    break;
 	            		case GAMESTATE_LOSE:
 	            		    break;
-	            		case GAMESTATE_VICT:
+	            		case GAMESTATE_GOAL:
 	            		    break;
 	            		case GAMESTATE_EDIT:
 	            		    break;
@@ -102,9 +113,11 @@ printf("Game entering state \t%s...\n", GamestateName(engine->gamestate_new));
 	            		    break;
 	            		case GAMESTATE_PLAY:
 	            		    break;
+	            		case GAMESTATE_EVNT:
+	            		    break;
 	            		case GAMESTATE_LOSE:
 	            		    break;
-	            		case GAMESTATE_VICT:
+	            		case GAMESTATE_GOAL:
 	            		    break;
 	            		case GAMESTATE_EDIT:
 	            		    break;
@@ -138,10 +151,12 @@ printf("Gamestate change from %s \tto %s was deemed illegal!\n", GamestateName(e
 	            case GAMESTATE_PLAY:
 					engine->gamestate_new = UpdatePlay(t, DT_SEC, engine->viewport, engine->game, engine->controller, engine->dots, engine->assets);
 	                break;
+	            case GAMESTATE_EVNT:
+	                break;
 	            case GAMESTATE_LOSE:
 					engine->gamestate_new = UpdateLose(t, DT_SEC, engine->viewport, engine->game, engine->controller, engine->dots, engine->assets);
 	                break;
-	            case GAMESTATE_VICT:
+	            case GAMESTATE_GOAL:
 #if PRINT_DBG_GAMESTATE
 printf("Gamestate entered state it shouldn't be in: %s \tto %s !\n", GamestateName(gamestate_old), GamestateName(engine->gamestate_now));
 #endif					
@@ -156,8 +171,7 @@ printf("Gamestate entered state it shouldn't be in: %s \tto %s !\n", GamestateNa
 	            case GAMESTATE_EXIT:
 		            break;
 			}
-			if (ActionPressed(engine->controller, A_FSCR))
-				ToggleFullscreen(engine->viewport);
+
 			tickDots(engine->dots, t, DT_SEC);
 			// advance time
 			t++;
@@ -178,10 +192,12 @@ printf("Gamestate entered state it shouldn't be in: %s \tto %s !\n", GamestateNa
 			case GAMESTATE_PLAY:
 				RenderPlay(engine->viewport, engine->game, engine->controller, engine->dots, engine->assets);
 			break;
+			case GAMESTATE_EVNT:
+			break;
 			case GAMESTATE_LOSE:
 				RenderLose(engine->viewport, engine->game, engine->controller, engine->dots, engine->assets);
 			break;
-			case GAMESTATE_VICT:
+			case GAMESTATE_GOAL:
 			break;
 			case GAMESTATE_EDIT:
 			break;
@@ -219,10 +235,15 @@ int main(int argc, char* argv[])
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv LOAD ASSETS vvvvvvvvvvvvvvvvvvvvvvvvvv*/
 //LoadTexture(x);
 LoadFont(assets, 0, viewport->renderer, "assets/font/font_zsys.png");
-LoadCursor(assets, CUR_POINTER, 0, 0, "assets/cursor/cur_zsys_pointer.png");
+LoadFont(assets, 1, viewport->renderer, "assets/font/font_zsys_6x6.png");
+LoadCursor(assets, ZSDL_CURSOR_POINT, ZSDL_CURSOR_POINT_HOT_X, ZSDL_CURSOR_POINT_HOT_Y, "assets/cursor/cur_zsys_point.png");
+LoadCursor(assets, ZSDL_CURSOR_HAND, ZSDL_CURSOR_HAND_HOT_X, ZSDL_CURSOR_HAND_HOT_Y, "assets/cursor/cur_zsys_hand.png");
+LoadCursor(assets, ZSDL_CURSOR_GRAB, ZSDL_CURSOR_GRAB_HOT_X, ZSDL_CURSOR_GRAB_HOT_Y, "assets/cursor/cur_zsys_grab.png");
+LoadCursor(assets, ZSDL_CURSOR_CROSS, ZSDL_CURSOR_CROSS_HOT_X, ZSDL_CURSOR_CROSS_HOT_Y, "assets/cursor/cur_zsys_cross.png");
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ LOAD ASSETS ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
-SDL_SetCursor(assets->cur[CUR_POINTER]);
+SetCursor(viewport, assets, ZSDL_CURSOR_HAND);
+
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv MAIN LOOP vvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #ifdef __EMSCRIPTEN__

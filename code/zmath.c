@@ -246,6 +246,11 @@ r2 clamp_r2( r2 w,  r32 min,  r32 max)
 	return make_r2(ClampR32(w.x, min, max), ClampR32(w.y, min, max));
 }
 
+i2 i2_clamp_i2(i2 v, i2 min, i2 max)
+{
+	return make_i2(ClampI32(v.x, min.x, max.x), ClampI32(v.y, min.y, max.y));
+}
+
 r2 r2_flatten( r2 a)
 {
 	return make_r2((r32)trunc(a.x), (r32)trunc(a.y));

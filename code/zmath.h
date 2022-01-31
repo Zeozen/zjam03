@@ -28,6 +28,10 @@
 #define COS_PI_SIXTHS 0.866f
 #define SIN_PI_SIXTHS 0.5f
 
+#define WORLD_UNIT 8
+#define WORLD_UNIT_F 8.f
+
+
 
 
 /*^^^^^^^^^^^^^^^^^^^^ CONSTANTSANTS END ^^^^^^^^^^^^^^^^^^^^*/
@@ -168,6 +172,7 @@ r2 abs_r2( r2 w);
 
 i2 clamp_i2( i2 v,  i32 min,  i32 max);
 r2 clamp_r2( r2 w,  r32 min,  r32 max);
+i2 i2_clamp_i2(i2 v, i2 min, i2 max);
 
 r2 r2_flatten( r2 a);
 

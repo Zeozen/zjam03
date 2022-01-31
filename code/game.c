@@ -12,10 +12,12 @@ char* GetGamestateName(Gamestate state)
 			return "[Gamestate Main]";
 		case GAMESTATE_PLAY:
 			return "[Gamestate Play]";
+		case GAMESTATE_EVNT:
+			return "[Gamestate Event]";
 		case GAMESTATE_LOSE:
 			return "[Gamestate Lose]";
-		case GAMESTATE_VICT:
-			return "[Gamestate Victory]";
+		case GAMESTATE_GOAL:
+			return "[Gamestate Goal]";
 		case GAMESTATE_EDIT:
 			return "[Gamestate Edit]";
 		case GAMESTATE_EXIT:

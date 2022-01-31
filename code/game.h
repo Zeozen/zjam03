@@ -6,14 +6,15 @@
 #include "zsdl.h"
 
 
-#define NUMBER_OF_GAMESTATES 7
+#define NUMBER_OF_GAMESTATES 8
 typedef enum
 {
     GAMESTATE_INIT,
     GAMESTATE_MAIN,
     GAMESTATE_PLAY,
+    GAMESTATE_EVNT,
     GAMESTATE_LOSE,
-    GAMESTATE_VICT,
+    GAMESTATE_GOAL,
     GAMESTATE_EDIT,
     GAMESTATE_EXIT,
 } Gamestate;

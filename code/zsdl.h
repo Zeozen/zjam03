@@ -19,12 +19,9 @@ typedef struct Camera
 Camera* CreateCamera(r2 pos);
 void FreeCamera(Camera* camera);
 
-r2 CamScalingFactor(Camera* camera);
 
-i2 PixToCam(i2 pix, Camera* camera);
-i2 PosToCam(r2 pos, Camera* camera);
-i2 CamToPix(i2 cam, Camera* camera);
-r2 CamToPos(i2 cam, Camera* camera);
+
+
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ CAMERA ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 
@@ -32,6 +29,8 @@ r2 CamToPos(i2 cam, Camera* camera);
 // 1/5th of full HD(1920x1080) =  384 x 216
 #define ZSDL_INTERNAL_WIDTH 384
 #define ZSDL_INTERNAL_HEIGHT 216
+#define ZSDL_INTERNAL_HALFWIDTH 192
+#define ZSDL_INTERNAL_HALFHEIGHT 108
 
 #define ZSDL_RENDERLAYERS_MAX 5
 typedef enum
@@ -51,6 +50,7 @@ typedef enum
 //          0000'0000 0000'0000 0000'0000 0000'0000 0000'0000 0000'0000 0000'0000 0000'0000
 #define ZSDL_SETTINGS_BIT_SCANLINEFILTER 8
 #define ZSDL_SETTINGS_BYTE_PIXELSCALE 6
+#define ZSDL_SETTINGS_BYTE_ACTIVE_CURSOR 5
 typedef struct
 {
     SDL_Window*     window;
@@ -77,22 +77,26 @@ void ToggleFullscreen(Viewport* viewport);
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ SPEAKER ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv FONT vvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#define ZFONT_WIDTH 16
-#define ZFONT_HEIGHT 6
+#define ZFONT_DEFAULT_MAX_COL 16
+#define ZFONT_DEFAULT_MAX_ROW 6
+#define ZFONT_ASCII_OFFSET 32
 typedef struct
 {
     SDL_Texture* glyphs;
     i2 siz;
     i2 spacing;
 } zFont;
+
+void DrawTextWorld(Viewport* viewport, zFont* font, SDL_Color color, r2 pos, const char* text);
+void DrawTextScreen(Viewport* viewport, zFont* font, SDL_Color color, i2 loc, const char* text);
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ FONT ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv ASSETBANK vvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #define ASSETBANK_TEXTURES_MAX 16
 #define ASSETBANK_SOUNDS_MAX 32
 #define ASSETBANK_MUSIC_MAX 2
-#define ASSETBANK_CURSORS_MAX 2
-#define ASSETBANK_SURFACES_MAX 2
+#define ASSETBANK_CURSORS_MAX 4
+#define ASSETBANK_SURFACES_MAX 6
 #define ASSETBANK_FONTS_MAX 2
 #define ASSETBANK_STRINGS_MAX 1
 
@@ -239,19 +243,24 @@ char* ButtonStateName(E_BUTTON_STATE state);
 
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv CURSOR vvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#define ZSDL_CURSOR_CROSSHAIR_HOT_X 7
-#define ZSDL_CURSOR_CROSSHAIR_HOT_Y 7
-#define ZSDL_CURSOR_POINTER_HOT_X 1
-#define ZSDL_CURSOR_POINTER_HOT_Y 1
 #define ZSDL_CURSOR_BASE_SIZE 15
+#define ZSDL_CURSOR_POINT_HOT_X 1
+#define ZSDL_CURSOR_POINT_HOT_Y 1
+#define ZSDL_CURSOR_HAND_HOT_X 3
+#define ZSDL_CURSOR_HAND_HOT_Y 8
+#define ZSDL_CURSOR_GRAB_HOT_X 3
+#define ZSDL_CURSOR_GRAB_HOT_Y 8
+#define ZSDL_CURSOR_CROSS_HOT_X 7
+#define ZSDL_CURSOR_CROSS_HOT_Y 7
 typedef enum
 {
-    ZSDL_CURSOR_POINTER,
-    ZSDL_CURSOR_CROSSHAIR,
-    ZSDL_CURSOR_OPEN_HAND,
-    ZSDL_CURSOR_PINCH_HAND
+    ZSDL_CURSOR_POINT,
+    ZSDL_CURSOR_HAND,
+    ZSDL_CURSOR_GRAB,
+    ZSDL_CURSOR_CROSS,
 }ZSDL_CURSOR;
 
+void SetCursor(Viewport* viewport, Assets* assets, u8 new_cursor);
 void RefreshCursors(Viewport* viewport, Assets* assets);
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ CURSOR ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
@@ -265,15 +274,18 @@ void FinalizeRenderAndPresent(Viewport* viewport);
 
 void DrawNumber(Viewport* viewport, SDL_Texture* texture, u32 number, i2 size_src, i2 size_dst, i2 location, u32 max_digits);
 
-#define COLOR(r,g,b,a) SDL_Color(r, g, b, a)
-#define RED COLOR(0xff, 0x00, 0x00, 0xff)
-#define GREEN COLOR(0x00, 0xff, 0x00, 0xff)
-#define BLUE COLOR(0x00, 0x00, 0xff, 0xff)
-#define YELLOW COLOR(0xff, 0xff, 0x00, 0xff)
-#define CYAN COLOR(0x00, 0xff, 0xff, 0xff)
-#define PURPLE COLOR(0xff, 0x00, 0xff, 0xff)
-#define BLACK COLOR(0x00, 0x00, 0x00, 0xff)
-#define WHITE COLOR(0xff, 0xff, 0xff, 0xff)
+i2 PosToCam(r2 pos, Viewport* viewport);
+r2 CamToPos(i2 cam, Viewport* viewport);
+
+#define COLOR(r,g,b,a) (SDL_Color){r, g, b, a}
+#define COLOR_RED COLOR(0xff, 0x00, 0x00, 0xff)
+#define COLOR_GREEN COLOR(0x00, 0xff, 0x00, 0xff)
+#define COLOR_BLUE COLOR(0x00, 0x00, 0xff, 0xff)
+#define COLOR_YELLOW COLOR(0xff, 0xff, 0x00, 0xff)
+#define COLOR_CYAN COLOR(0x00, 0xff, 0xff, 0xff)
+#define COLOR_PURPLE COLOR(0xff, 0x00, 0xff, 0xff)
+#define COLOR_BLACK COLOR(0x00, 0x00, 0x00, 0xff)
+#define COLOR_WHITE COLOR(0xff, 0xff, 0xff, 0xff)
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ RENDER SUPPORT FUNCTIONS ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 #endif // ZSDL_H

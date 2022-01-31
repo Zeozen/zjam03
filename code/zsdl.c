@@ -50,6 +50,7 @@ Viewport* CreateViewport(const char* window_title)
 	Viewport* viewport = (Viewport*)malloc(sizeof(Viewport));
 	viewport->settings = 0;
 	viewport->screen = (SDL_Rect){0, 0, ZSDL_INTERNAL_WIDTH, ZSDL_INTERNAL_HEIGHT};
+	SET8IN64(1, &viewport->settings, ZSDL_SETTINGS_BYTE_PIXELSCALE);
 
 	printf("Initialising zSDL viewport...\n");
 	//TODO: replace window scale with pixelscale in viewport struct, see rocketknight.render.c -> presentviewport and computepixelscale
@@ -408,6 +409,7 @@ void LoadFont(Assets* assets, i32 identifier, SDL_Renderer* renderer, const char
 	{
 		printf("LoadString error: string at specified identifier %d already exists, or identifier was out of range.\n",
 			   identifier);
+		return;
 	}
 	else
 	{
@@ -453,37 +455,43 @@ void LoadFont(Assets* assets, i32 identifier, SDL_Renderer* renderer, const char
 @TODO: improve this function => make it more clear to read and understand, find better solution*/
 i2 MouseLocation(Controller* c, Viewport* viewport)
 {
-	u32 pixelsize				 = GET8IN64(viewport->settings, ZSDL_SETTINGS_BYTE_PIXELSCALE);
+	u8 pixelsize				 = GET8IN64(viewport->settings, ZSDL_SETTINGS_BYTE_PIXELSCALE);
 	i2 pixel_corrected_mouse_loc = c->mouse_location;
+
+	i2 camera_offset = make_i2(viewport->screen.x, viewport->screen.y);
+	pixel_corrected_mouse_loc = sub_i2(pixel_corrected_mouse_loc, camera_offset);
+	pixel_corrected_mouse_loc = i2_clamp_i2(pixel_corrected_mouse_loc, ZERO_I2, make_i2(viewport->screen.w, viewport->screen.h));
+	pixel_corrected_mouse_loc.x /= pixelsize;
+	pixel_corrected_mouse_loc.y /= pixelsize;
 	
-	if (SDL_GetWindowFlags(viewport->window) & SDL_WINDOW_FULLSCREEN)
-	{
-		SDL_Rect draw_area = {0, 0, ZSDL_INTERNAL_WIDTH, ZSDL_INTERNAL_HEIGHT};
-		i32 w_max, h_max;
-		//int display_index = SDL_GetWindowDisplayIndex(viewport->window);
-		SDL_DisplayMode current_display_mode;
-		SDL_GetCurrentDisplayMode(0, &current_display_mode);
-		w_max					   = current_display_mode.w;
-		h_max					   = current_display_mode.h;
-		//i32 dis_to_internal_size_w = w_max / ZSDL_INTERNAL_WIDTH;
-		//i32 dis_to_internal_size_h = h_max / ZSDL_INTERNAL_HEIGHT;
-		//i32 min_size			   = MinI32(dis_to_internal_size_w, dis_to_internal_size_h);
-		draw_area.w				   = ZSDL_INTERNAL_WIDTH * pixelsize;
-		draw_area.h				   = ZSDL_INTERNAL_HEIGHT * pixelsize;
-		draw_area.x				   = (w_max / 2) - (draw_area.w / 2);
-		draw_area.y				   = (h_max / 2) - (draw_area.h / 2);
-		pixel_corrected_mouse_loc.x -= draw_area.x;
-		pixel_corrected_mouse_loc.y -= draw_area.y;
-		pixel_corrected_mouse_loc.x = ClampI32(pixel_corrected_mouse_loc.x, 0, (draw_area.w));
-		pixel_corrected_mouse_loc.y = ClampI32(pixel_corrected_mouse_loc.y, 0, (draw_area.h));
-		pixel_corrected_mouse_loc.x /= pixelsize;
-		pixel_corrected_mouse_loc.y /= pixelsize;
-	}
-	else
-	{
-		pixel_corrected_mouse_loc.x /= pixelsize;
-		pixel_corrected_mouse_loc.y /= pixelsize;
-	}
+	//if (SDL_GetWindowFlags(viewport->window) & SDL_WINDOW_FULLSCREEN)
+	//{
+	//	SDL_Rect draw_area = {0, 0, ZSDL_INTERNAL_WIDTH, ZSDL_INTERNAL_HEIGHT};
+	//	i32 w_max, h_max;
+	//	//int display_index = SDL_GetWindowDisplayIndex(viewport->window);
+	//	SDL_DisplayMode current_display_mode;
+	//	SDL_GetCurrentDisplayMode(0, &current_display_mode);
+	//	w_max					   = current_display_mode.w;
+	//	h_max					   = current_display_mode.h;
+	//	//i32 dis_to_internal_size_w = w_max / ZSDL_INTERNAL_WIDTH;
+	//	//i32 dis_to_internal_size_h = h_max / ZSDL_INTERNAL_HEIGHT;
+	//	//i32 min_size			   = MinI32(dis_to_internal_size_w, dis_to_internal_size_h);
+	//	draw_area.w				   = ZSDL_INTERNAL_WIDTH * pixelsize;
+	//	draw_area.h				   = ZSDL_INTERNAL_HEIGHT * pixelsize;
+	//	draw_area.x				   = (w_max / 2) - (draw_area.w / 2);
+	//	draw_area.y				   = (h_max / 2) - (draw_area.h / 2);
+	//	pixel_corrected_mouse_loc.x -= draw_area.x;
+	//	pixel_corrected_mouse_loc.y -= draw_area.y;
+	//	pixel_corrected_mouse_loc.x = ClampI32(pixel_corrected_mouse_loc.x, 0, (draw_area.w));
+	//	pixel_corrected_mouse_loc.y = ClampI32(pixel_corrected_mouse_loc.y, 0, (draw_area.h));
+	//	pixel_corrected_mouse_loc.x /= pixelsize;
+	//	pixel_corrected_mouse_loc.y /= pixelsize;
+	//}
+	//else
+	//{
+	//	pixel_corrected_mouse_loc.x /= pixelsize;
+	//	pixel_corrected_mouse_loc.y /= pixelsize;
+	//}
 	
 	return pixel_corrected_mouse_loc;
 }
@@ -787,50 +795,95 @@ void FreeCamera(Camera* camera)
 }
 
 
-r2 CamScalingFactor(Camera* camera)
+
+
+
+
+i2 PosToCam( r2 pos, Viewport* viewport)
 {
-	r2 scaling_factor = make_r2(ZSDL_INTERNAL_WIDTH / camera->zoom, ZSDL_INTERNAL_WIDTH / camera->zoom);
-    return scaling_factor;
+	//r32 x = pos.x * viewport->camera->zoom - viewport->camera->pos.x * viewport->camera->zoom
+	r32 x = ((pos.x - viewport->camera->pos.x) * viewport->camera->zoom) + ZSDL_INTERNAL_HALFWIDTH;
+	r32 y = ((pos.y - viewport->camera->pos.y) * viewport->camera->zoom) + ZSDL_INTERNAL_HALFHEIGHT;
+	return r2_to_i2(make_r2(x, y));
+	//r2 result = r2_mul_x(pos, viewport->camera->zoom);
+	//return r2_to_i2(sub_r2(result, r2_mul_x(viewport->camera->pos, viewport->camera->zoom)));
 }
 
-i2 PixToCam(i2 pix, Camera* camera)
+r2 CamToPos( i2 cam, Viewport* viewport)
 {
-	return i2_mul_r2(sub_i2(pix, PosToPix(camera->pos)), CamScalingFactor(camera));
-}
-
-i2 PosToCam( r2 pos, Camera* camera)
-{
-	r2 result = r2_mul_x(pos, camera->zoom);
-	return r2_to_i2(sub_r2(result, r2_mul_x(camera->pos, camera->zoom)));
-}
-
-i2 CamToPix(i2 cam, Camera* camera)
-{
-	r2 scaling_factor = CamScalingFactor(camera);
-	i2 pix_from_screen = make_i2((i32)(cam.x / scaling_factor.x), (i32)(cam.y / scaling_factor.y));
-	return add_i2(pix_from_screen, PosToPix(camera->pos));
-}
-
-r2 CamToPos( i2 cam, Camera* camera)
-{
-	return PixToPos(CamToPix(cam, camera));
+	r32 x = ((cam.x + viewport->camera->pos.x) * viewport->camera->zoom) - ZSDL_INTERNAL_HALFWIDTH;
+	r32 y = ((cam.y + viewport->camera->pos.y) * viewport->camera->zoom) - ZSDL_INTERNAL_HALFHEIGHT;
+	return make_r2(x, y);
+	//return PixToPos(CamToPix(cam, viewport->camera));
 }
 
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ CAMERA ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv RENDER SUPPORT FUNCTIONS vvvvvvvvvvvvvvvvvvvvvvvvvv*/
 
+void SetCursor(Viewport* viewport, Assets* assets, u8 new_cursor)
+{
+	SET8IN64(new_cursor, &viewport->settings, ZSDL_SETTINGS_BYTE_ACTIVE_CURSOR);
+	SDL_SetCursor(assets->cur[new_cursor]);
+}
+
 void RefreshCursors(Viewport* viewport, Assets* assets)
 {
-	//reblit cursor surface to cursor to scale when window scale changes
+	i32 pixelscale = GET8IN64(viewport->settings, ZSDL_SETTINGS_BYTE_PIXELSCALE);
+	static i2 cursor_hotspots[ASSETBANK_CURSORS_MAX] = 
+	{
+		{ZSDL_CURSOR_POINT_HOT_X, ZSDL_CURSOR_POINT_HOT_Y},
+		{ZSDL_CURSOR_HAND_HOT_X, ZSDL_CURSOR_HAND_HOT_Y},
+		{ZSDL_CURSOR_GRAB_HOT_X, ZSDL_CURSOR_GRAB_HOT_Y},
+		{ZSDL_CURSOR_CROSS_HOT_X, ZSDL_CURSOR_CROSS_HOT_Y},
+	};
+	for (i32 i = 0; i < ASSETBANK_CURSORS_MAX; i++)
+	{
+		SDL_Surface* cursor_scaled = SDL_CreateRGBSurface(0, ZSDL_CURSOR_BASE_SIZE * pixelscale, ZSDL_CURSOR_BASE_SIZE * pixelscale, 32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff);
+		SDL_BlitScaled(assets->sur[i], NULL, cursor_scaled, NULL);
+		SDL_FreeCursor(assets->cur[i]);
+		assets->cur[i] = SDL_CreateColorCursor(cursor_scaled, cursor_hotspots[i].x * pixelscale, cursor_hotspots[i].y * pixelscale);
+		SDL_FreeSurface(assets->sur[i]);
+		assets->sur[i] = cursor_scaled;
+	}
+	SetCursor(viewport, assets, GET8IN64(viewport->settings, ZSDL_SETTINGS_BYTE_ACTIVE_CURSOR));
+	// //reblit cursor surface to cursor to scale when window scale changes
+	// ini_t *filepaths = ini_load(INI_FILEPATHS);
+	// SDL_Surface* cursor_surface = IMG_Load(ini_get(filepaths, "cursors", "crosshair"));
+	// u32 p = computePixelScale(viewport);
+	// SDL_Surface* cursor_scaled = SDL_CreateRGBSurface(0, CUR_BASE_SIZE*p, CUR_BASE_SIZE*p, 32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff);
+	// SDL_BlitScaled(cursor_surface, NULL, cursor_scaled, NULL);
+	// assets->cur[CUR_CROSSHAIR] = SDL_CreateColorCursor(cursor_scaled, CUR_CROSSHAIR_HOT*p, CUR_CROSSHAIR_HOT*p);
+	// if (assets->cur[CUR_CROSSHAIR] == NULL)
+	// 	printf("CURSOR ERROR! %s", SDL_GetError());
+	// SDL_FreeSurface(cursor_scaled);
+
+	// cursor_surface = IMG_Load(ini_get(filepaths, "cursors", "hand"));
+	// cursor_scaled = SDL_CreateRGBSurface(0, CUR_BASE_SIZE*p, CUR_BASE_SIZE*p, 32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff);
+	// SDL_BlitScaled(cursor_surface, NULL, cursor_scaled, NULL);
+	// assets->cur[CUR_HAND] = SDL_CreateColorCursor(cursor_scaled, CUR_HAND_HOT*p, CUR_HAND_HOT*p);
+	
+	// SDL_FreeSurface(cursor_scaled);
+	// SDL_FreeSurface(cursor_surface);
+	// ini_free(filepaths);
 }
 
 void ToggleFullscreen(Viewport* viewport)
 {
+	int current_display_index = SDL_GetWindowDisplayIndex(viewport->window);
+	SDL_DisplayMode current_display_mode;
+	SDL_GetCurrentDisplayMode(current_display_index, &current_display_mode);
 	if (SDL_GetWindowFlags(viewport->window) & SDL_WINDOW_FULLSCREEN)
+	{
 		SDL_SetWindowFullscreen(viewport->window, 0);
+		SDL_SetWindowPosition(viewport->window, SDL_WINDOWPOS_CENTERED_DISPLAY(current_display_index), SDL_WINDOWPOS_CENTERED_DISPLAY(current_display_index));
+	}
 	else
-		SDL_SetWindowFullscreen(viewport->window, SDL_WINDOW_FULLSCREEN);
+		SDL_SetWindowFullscreen(viewport->window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+		//TODO: Implement true fullscreen, requires calls to GetCurrentDisplayMode, SetCurrentDisplayMode.. handle multiple monitors
+
+
+	
 }
 
 
@@ -892,6 +945,8 @@ void ComputePixelScale(Viewport* viewport)
 	}
 	u8 renderscale = (screen_width < screen_height) * (screen_width / ZSDL_INTERNAL_WIDTH) +
 					 (screen_width >= screen_height) * (screen_height / ZSDL_INTERNAL_HEIGHT);
+	if (renderscale == 0)
+		renderscale = 1;
 	SET8IN64(renderscale, &viewport->settings, ZSDL_SETTINGS_BYTE_PIXELSCALE);
 }
 
@@ -925,8 +980,8 @@ void CalculateScreen(Viewport* viewport)
 	i32 pixelscale = GET8IN64(viewport->settings, ZSDL_SETTINGS_BYTE_PIXELSCALE);
 	viewport->screen.w = pixelscale * ZSDL_INTERNAL_WIDTH;
 	viewport->screen.h = pixelscale * ZSDL_INTERNAL_HEIGHT;
-	viewport->screen.x = (screen_width / 2);// - (viewport->screen.w / 2);
-	viewport->screen.x = (screen_height / 2) - (viewport->screen.h / 2);
+	viewport->screen.x = (screen_width / 2) - (viewport->screen.w / 2);
+	viewport->screen.y = (screen_height / 2) - (viewport->screen.h / 2);
 }
 
 void DrawNumber(Viewport* viewport, SDL_Texture* texture, u32 number, i2 size_src, i2 size_dst, i2 location, u32 max_digits)
@@ -954,3 +1009,46 @@ void DrawNumber(Viewport* viewport, SDL_Texture* texture, u32 number, i2 size_sr
 	}
 }
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ RENDER SUPPORT FUNCTIONS ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
+
+/*vvvvvvvvvvvvvvvvvvvvvvvvvv FONT TEXT DRAWING vvvvvvvvvvvvvvvvvvvvvvvvvv*/
+void DrawTextWorld(Viewport* viewport, zFont* font, SDL_Color color, r2 pos, const char* text)
+{
+	i32 i = 0;
+	i2 screen_pos = PosToCam(pos, viewport);
+	SDL_Rect src = {0, 0, font->siz.x, font->siz.y};
+	SDL_Rect dst = {screen_pos.x, screen_pos.y, font->siz.x, font->siz.y};
+	SDL_SetTextureColorMod(font->glyphs, color.r, color.g, color.b);
+	while(text[i] != '\0')
+    {
+        i32 glyph_idx = text[i] - ZFONT_ASCII_OFFSET;
+		src.x = (glyph_idx % ZFONT_DEFAULT_MAX_COL) * font->siz.x;
+		src.y = (glyph_idx / ZFONT_DEFAULT_MAX_COL) * font->siz.y;
+		dst.x = screen_pos.x + i * font->siz.x + font->spacing.x;
+		dst.y = screen_pos.y;//+ i * font->siz.y + font->spacing.y;
+
+        SDL_RenderCopy(viewport->renderer, font->glyphs, &src, &dst);
+        i++;
+    }
+}
+
+void DrawTextScreen(Viewport* viewport, zFont* font, SDL_Color color, i2 loc, const char* text)
+{
+	i32 i = 0;
+	i2 screen_pos = loc;
+	SDL_Rect src = {0, 0, font->siz.x, font->siz.y};
+	SDL_Rect dst = {screen_pos.x, screen_pos.y, font->siz.x, font->siz.y};
+	SDL_SetTextureColorMod(font->glyphs, color.r, color.g, color.b);
+	while(text[i] != '\0')
+    {
+        i32 glyph_idx = text[i] - ZFONT_ASCII_OFFSET;
+		src.x = (glyph_idx % ZFONT_DEFAULT_MAX_COL) * font->siz.x;
+		src.y = (glyph_idx / ZFONT_DEFAULT_MAX_COL) * font->siz.y;
+		dst.x = screen_pos.x + i * font->siz.x + font->spacing.x;
+		dst.y = screen_pos.y;//+ i * font->siz.y + font->spacing.y;
+
+        SDL_RenderCopy(viewport->renderer, font->glyphs, &src, &dst);
+        i++;
+    }
+}
+
+/*^^^^^^^^^^^^^^^^^^^^^^^^^^ FONT TEXT DRAWING ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
