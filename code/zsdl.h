@@ -7,7 +7,11 @@
 #include "assets.h"
 #include "zmath.h"
 
+typedef struct ZSDL_Cursor ZSDL_Cursor;
+
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv CAMERA vvvvvvvvvvvvvvvvvvvvvvvvvv*/
+#define ZSDL_CAMERA_MAX_ZOOM 8.f
+#define ZSDL_CAMERA_MIN_ZOOM 0.25f
 typedef struct Camera
 {
     r2 pos;
@@ -18,8 +22,6 @@ typedef struct Camera
 
 Camera* CreateCamera(r2 pos);
 void FreeCamera(Camera* camera);
-
-
 
 
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ CAMERA ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
@@ -46,11 +48,17 @@ typedef enum
 // viewport settings u64 layout
 // bits for single flags and bytes for numbers
 // bitpos   63                                                                            0
-// bytepos  ____8____ ____7____ ____6____ ____5____ ____4____ ____3____ ____1____ ____0____
+// bytepos  ____7____ ____6____ ____5____ ____4____ ____3____ ____2____ ____1____ ____0____
 //          0000'0000 0000'0000 0000'0000 0000'0000 0000'0000 0000'0000 0000'0000 0000'0000
+// layout                       FADECOLOR FADEALPHA PIXLSCALE CURSOR ID BITFLAGSB BITFLAGSA 
+
 #define ZSDL_SETTINGS_BIT_SCANLINEFILTER 8
-#define ZSDL_SETTINGS_BYTE_PIXELSCALE 6
-#define ZSDL_SETTINGS_BYTE_ACTIVE_CURSOR 5
+#define ZSDL_SETTINGS_BYTE_BITFLAGS_A 0
+#define ZSDL_SETTINGS_BYTE_BITFLAGS_B 1
+#define ZSDL_SETTINGS_BYTE_ACTIVE_CURSOR 2
+#define ZSDL_SETTINGS_BYTE_PIXELSCALE 3
+#define ZSDL_SETTINGS_BYTE_FADE_ALPHA 4
+#define ZSDL_SETTINGS_BYTE_FADE_COLOR 5
 typedef struct
 {
     SDL_Window*     window;
@@ -87,7 +95,7 @@ typedef struct
     i2 spacing;
 } zFont;
 
-void DrawTextWorld(Viewport* viewport, zFont* font, SDL_Color color, r2 pos, const char* text);
+void DrawTextWorld(Viewport* viewport, zFont* font, SDL_Color color, r2 pos, r32 depth, const char* text);
 void DrawTextScreen(Viewport* viewport, zFont* font, SDL_Color color, i2 loc, const char* text);
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ FONT ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
@@ -95,7 +103,7 @@ void DrawTextScreen(Viewport* viewport, zFont* font, SDL_Color color, i2 loc, co
 #define ASSETBANK_TEXTURES_MAX 16
 #define ASSETBANK_SOUNDS_MAX 32
 #define ASSETBANK_MUSIC_MAX 2
-#define ASSETBANK_CURSORS_MAX 4
+#define ASSETBANK_CURSORS_MAX 7
 #define ASSETBANK_SURFACES_MAX 6
 #define ASSETBANK_FONTS_MAX 2
 #define ASSETBANK_STRINGS_MAX 1
@@ -105,7 +113,7 @@ typedef struct
 	SDL_Texture* tex[ASSETBANK_TEXTURES_MAX];
 	Mix_Chunk* sfx[ASSETBANK_SOUNDS_MAX];
     Mix_Music* mus[ASSETBANK_MUSIC_MAX];
-	SDL_Cursor* cur[ASSETBANK_CURSORS_MAX];
+	ZSDL_Cursor* cur[ASSETBANK_CURSORS_MAX];
 	SDL_Surface* sur[ASSETBANK_SURFACES_MAX];
 	zFont* fon[ASSETBANK_FONTS_MAX];
 	char* str[ASSETBANK_STRINGS_MAX];
@@ -114,10 +122,11 @@ typedef struct
 Assets* CreateAssets(Viewport* viewport);
 void FreeAssets(Assets* assets);
 void LoadSound(Assets* assets, i32 identifier, const char* path);
+void LoadMusic(Assets* assets, i32 identifier, const char* path);
 void LoadSurface(Assets* assets, i32 identifier, const char* path);
 void LoadString(Assets* assets, i32 identifier, const char* path);
 void LoadTexture(Assets* assets, i32 identifier, SDL_Renderer* renderer, const char* path);
-void LoadCursor(Assets* assets, i32 identifier, i32 cursor_hotspot_x, i32 cursor_hotspot_y, const char* path);
+void LoadCursor(Assets* assets, i32 identifier, const char* path);
 void LoadFont(Assets* assets, i32 identifier, SDL_Renderer* renderer, const char* path);
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ ASSETBANK ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
@@ -146,6 +155,11 @@ void LoadFont(Assets* assets, i32 identifier, SDL_Renderer* renderer, const char
 #define A_FSCR 15 // fullscreen
 #define A_ESC 16
 #define A_RSIZ 17 // resize window
+#define A_ONE 18 //numbers, usually action or hotbar
+#define A_TWO 19 //numbers, usually action or hotbar
+#define A_THREE 20 //numbers, usually action or hotbar
+#define A_FOUR 21 //numbers, usually action or hotbar
+#define A_TAB 22
 
 typedef struct 
 {
@@ -166,7 +180,7 @@ b8 ActionHeld(Controller* c, u64 action);
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ INPUT CONTROLLER ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 
-/*vvvvvvvvvvvvvvvvvvvvvvvvvv DOT PARTICLES vvvvvvvvvvvvvvvvvvvvvvvvvv*/
+/*vvvvvvvvvvvvvvvvvvvvvvvvvv PARTICLES vvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #define DOTS_MAX 200
 typedef struct
 {
@@ -187,19 +201,54 @@ typedef struct
 	r2 acc;
 	r2 vel;
 	r2 pos;
+    r32 depth;
 } Dot;
+
+#define BUBBLES_MAX 128
+typedef struct
+{
+	u16 lifetime;
+	u16 current_life;
+	u8 r;
+	u8 b;
+	u8 g;
+	u8 a;
+	u8 r_0;
+	u8 g_0;
+	u8 b_0;
+	u8 a_0;
+	u8 r_1;
+	u8 g_1;
+	u8 b_1;
+	u8 a_1;
+	r2 acc;
+	r2 vel;
+	r2 pos;
+    r32 rad;
+    r32 rad_0;
+    r32 rad_1;
+    r32 depth;
+} Bubble;
+
 
 typedef struct
 {
-	Dot dot[DOTS_MAX];
-} Dots;
+	Dot dots[DOTS_MAX];
+	Bubble bubbles[BUBBLES_MAX];
+} Particles;
 
-Dots* initDots();
-b8 SpawnDot(Dots* dots, u16 lifetime, r2 pos, r2 vel, r2 acc, SDL_Color initial_color, SDL_Color final_color);
-void tickDots(Dots* dots, u32 t, r32 dt);
-void DrawDots(Viewport* viewport, u32 t, Dots* dots);
-void FreeDots(Dots* dots);
-/*^^^^^^^^^^^^^^^^^^^^^^^^^^ DOT PARTICLES ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
+Particles* InitParticles();
+b8 SpawnBubble(Particles* p, u16 lifetime, r2 pos, r2 vel, r2 acc, r32 depth, r32 initial_radius, r32 final_radius, SDL_Color initial_color, SDL_Color final_color);
+b8 SpawnDot(Particles* p, u16 lifetime, r2 pos, r2 vel, r2 acc, r32 depth, SDL_Color initial_color, SDL_Color final_color);
+void TickParticles(Particles* p, u32 t, r32 dt);
+void DrawParticles(Viewport* viewport, u32 t, Particles* p);
+void FreeParticles(Particles* p);
+
+// Dots* initDots();
+// void tickDots(Dots* dots, u32 t, r32 dt);
+// void DrawDots(Viewport* viewport, u32 t, Dots* dots);
+// void FreeDots(Dots* dots);
+/*^^^^^^^^^^^^^^^^^^^^^^^^^^ PARTICLES ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv GUI vvvvvvvvvvvvvvvvvvvvvvvvvv*/
@@ -243,22 +292,14 @@ char* ButtonStateName(E_BUTTON_STATE state);
 
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv CURSOR vvvvvvvvvvvvvvvvvvvvvvvvvv*/
+
 #define ZSDL_CURSOR_BASE_SIZE 15
-#define ZSDL_CURSOR_POINT_HOT_X 1
-#define ZSDL_CURSOR_POINT_HOT_Y 1
-#define ZSDL_CURSOR_HAND_HOT_X 3
-#define ZSDL_CURSOR_HAND_HOT_Y 8
-#define ZSDL_CURSOR_GRAB_HOT_X 3
-#define ZSDL_CURSOR_GRAB_HOT_Y 8
-#define ZSDL_CURSOR_CROSS_HOT_X 7
-#define ZSDL_CURSOR_CROSS_HOT_Y 7
-typedef enum
+typedef struct ZSDL_Cursor
 {
-    ZSDL_CURSOR_POINT,
-    ZSDL_CURSOR_HAND,
-    ZSDL_CURSOR_GRAB,
-    ZSDL_CURSOR_CROSS,
-}ZSDL_CURSOR;
+	SDL_Surface* source_bitmap;
+	SDL_Cursor* cursor;
+	i2 hotspot;
+} ZSDL_Cursor;
 
 void SetCursor(Viewport* viewport, Assets* assets, u8 new_cursor);
 void RefreshCursors(Viewport* viewport, Assets* assets);
@@ -273,8 +314,10 @@ void CleanRenderTargets(Viewport* viewport);
 void FinalizeRenderAndPresent(Viewport* viewport);
 
 void DrawNumber(Viewport* viewport, SDL_Texture* texture, u32 number, i2 size_src, i2 size_dst, i2 location, u32 max_digits);
+void ZSDL_RenderDrawCircle(Viewport* viewport, u32 radius, i2 center);
+void DrawNineSliced(Viewport* viewport, struct SDL_Texture* source_texture, i2 src_loc, i2 dst_loc, i2 dst_siz, i32 slice_dimensions);
 
-i2 PosToCam(r2 pos, Viewport* viewport);
+i2 PosToCam(r2 pos, r32 depth, Viewport* viewport);
 r2 CamToPos(i2 cam, Viewport* viewport);
 
 #define COLOR(r,g,b,a) (SDL_Color){r, g, b, a}

@@ -31,8 +31,8 @@ char* GetGamestateName(Gamestate state)
 Game* CreateGame()
 {
     Game* new_game = malloc(sizeof(Game));
-	RestartGame(new_game);
 
+	RestartGame(new_game);
     return new_game;
 }
 
@@ -43,10 +43,16 @@ void FreeGame(Game* game)
     printf("Game freed.\n");
 }
 
+
+
 void RestartGame(Game* game)
 {
 	for (i32 i = 0; i < GAMEDATA_MAX; i++)
 	{
 		game->data[i] = 0;
 	}
+	memset(game, 0, sizeof(Game));
+	SEED_ZRNG();
 }
+
+

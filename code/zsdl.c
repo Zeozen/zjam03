@@ -25,22 +25,10 @@ b8 SetupSDL()
 		Mix_AllocateChannels(ASSETBANK_SOUNDS_MAX);
 		Mix_ReserveChannels(ASSETBANK_SOUNDS_MAX);
 		for (i32 i = 0; i < ASSETBANK_SOUNDS_MAX; i++)
-		{
 			Mix_Volume(i, MIX_MAX_VOLUME/2);
-		}
 
-		//// init SDL_TTF
-		//if (TTF_Init() == -1)
-		//{
-		//	printf("TTF_Init: %s\n", TTF_GetError());
-		//}
+		Mix_VolumeMusic(255);
 
-		/* Get init data on all the subsystems */
-		Uint32 subsystem_init = SDL_WasInit(SDL_INIT_EVERYTHING);
-		if (subsystem_init & SDL_INIT_AUDIO)
-			printf("Audio is initialized.\n");
-		else 
-	    printf("Audio is not initialized.\n");
 		return 1;
 	}
 }
@@ -57,7 +45,7 @@ Viewport* CreateViewport(const char* window_title)
 	viewport->window =
 		SDL_CreateWindow(window_title, SDL_WINDOWPOS_CENTERED_DISPLAY(0), SDL_WINDOWPOS_CENTERED_DISPLAY(0),
 						 ZSDL_INTERNAL_WIDTH, ZSDL_INTERNAL_HEIGHT,
-						 SDL_WINDOW_SHOWN | SDL_RENDERER_PRESENTVSYNC | SDL_WINDOW_RESIZABLE/* | SDL_WINDOW_INPUT_GRABBED */);
+						 SDL_WINDOW_SHOWN | SDL_RENDERER_PRESENTVSYNC | SDL_WINDOW_RESIZABLE /*| SDL_WINDOW_BORDERLESS | SDL_WINDOW_INPUT_GRABBED */);
 	if (viewport->window == NULL)
 	{
 		printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
@@ -154,7 +142,7 @@ void FreeController(Controller* controller)
 Assets* CreateAssets(Viewport* viewport)
 {
 	printf("initializing assets...\n");
-    Assets* assets = (Assets*)malloc(sizeof(Assets));
+    Assets* assets = malloc(sizeof(Assets));
 	memset(assets, 0, sizeof(Assets));
 
 	if (assets == NULL)
@@ -194,7 +182,11 @@ void FreeAssets(Assets* assets)
 	{
 		if (assets->cur[i] != NULL)
 		{
-			SDL_FreeCursor(assets->cur[i]);
+			if (assets->cur[i]->cursor != NULL)
+				SDL_FreeCursor(assets->cur[i]->cursor);
+			if (assets->cur[i]->source_bitmap != NULL)
+				SDL_FreeSurface(assets->cur[i]->source_bitmap);
+			free(assets->cur[i]);
 			assets->cur[i] = NULL;
 		}
 	}
@@ -369,23 +361,101 @@ void LoadSound(Assets* assets, i32 identifier, const char* path)
 	}
 }
 
-void LoadCursor(Assets* assets, i32 identifier, i32 cursor_hotspot_x, i32 cursor_hotspot_y, const char* path)
+void LoadMusic(Assets* assets, i32 identifier, const char* path)
 {
-	if ((assets->sur[identifier] != NULL) || (identifier >= ASSETBANK_SURFACES_MAX))
+		if ((assets->mus[identifier] != NULL) || (identifier >= ASSETBANK_SOUNDS_MAX))
 	{
-		printf("LoadCursor error: specified identifier %d does not exist or was invalid\n", identifier);
+		printf("LoadSound error: sound already exists at specified identifier%d, or identifier was invalid.\n",
+			   identifier);
+		return;
 	}
 	else
 	{
-		if ((assets->cur[identifier] != NULL) || (identifier >= ASSETBANK_CURSORS_MAX))
+		Mix_Music* loaded_music = Mix_LoadMUS(path);
+		if (loaded_music == NULL)
 		{
-			printf("LoadCursor error: specified cursor id %d was invalid \n", identifier);
+			printf("Unable to load sound from %s! SDL Error: %s\n", path, SDL_GetError());
+			return;
 		}
 		else
 		{
-			LoadSurface(assets, identifier, path);
-			//TODO: replace function parameter cursor_hotspot with pixel encoded in bitmap (e.g. red pixel for hotspot), and process surface to only blit pixels other than hotspotpixel
-			assets->cur[identifier] = SDL_CreateColorCursor(assets->sur[identifier], cursor_hotspot_x, cursor_hotspot_y);
+			assets->mus[identifier] = loaded_music;
+			return;
+		}
+	}
+}
+
+void LoadCursor(Assets* assets, i32 identifier, const char* path)
+{
+
+	if ((assets->cur[identifier] != NULL) || (identifier >= ASSETBANK_CURSORS_MAX))
+	{
+		printf("LoadCursor error: specified cursor id %d was invalid or out of range (max cursors: %d\n", identifier, ASSETBANK_CURSORS_MAX);
+	}
+	else
+	{
+		SDL_Surface* surface = IMG_Load(path);
+		
+		if (surface == NULL)
+		{
+			printf("LoadCursor error: cursor bitmap surface could not be loaded from %s. Error: %s\n", path, IMG_GetError());
+			return;
+		}
+		else
+		{
+			i2 hotspot = ZERO_I2;
+			// Bytes per pixel
+			const Uint8 bpp = surface->format->BytesPerPixel;
+			/*
+			Retrieve the address to a specific pixel
+			surface->pixels  = an array containing the SDL_Surface' pixels
+			surface->pitch       = the length of a row of pixels (in bytes)
+			X and Y               = the offset on where on the image to retrieve the pixel; (0, 0) is the upper left corner
+			*/
+			for (i32 y = 0; y < ZSDL_CURSOR_BASE_SIZE; y++)
+			{
+				for (i32 x = 0; x < ZSDL_CURSOR_BASE_SIZE; x++)
+				{
+					Uint8* pPixel = (Uint8*)surface->pixels + y * surface->pitch + x * bpp;
+
+					Uint32 PixelData = *(Uint32*)pPixel;
+					Uint32* const target_pixel = (Uint32 *) ((Uint8 *) surface->pixels
+                                             + y * surface->pitch
+                                             + x * surface->format->BytesPerPixel);
+
+					SDL_Color color = {0x00, 0x00, 0x00, 0xff};
+
+					// Retrieve the RGB values of the specific pixel
+					SDL_GetRGB(PixelData, surface->format, &color.r, &color.g, &color.b);
+					
+					if (color.r == 0xff && color.g == 0x00 && color.b == 0x00)
+					{
+						hotspot.x = x; hotspot.y = y;
+						Uint32 transparent = SDL_MapRGBA(surface->format, 0x00, 0x00, 0x00, 0x00);
+						*target_pixel = transparent;
+					}
+					else if (color.r == 0x00 && color.g == 0xff && color.b == 0x00)
+					{
+						hotspot.x = x; hotspot.y = y;
+						Uint32 black = SDL_MapRGBA(surface->format, 0x00, 0x00, 0x00, 0xff);
+						//*pPixel = black;
+						*target_pixel = black;
+					}
+				}
+			}
+			ZSDL_Cursor* new_cursor = malloc(sizeof(ZSDL_Cursor));
+			if (new_cursor != NULL)
+			{
+				new_cursor->source_bitmap = surface;
+				new_cursor->hotspot = hotspot;
+				new_cursor->cursor = SDL_CreateColorCursor(surface, hotspot.x, hotspot.y);
+				assets->cur[identifier] = new_cursor;
+			}
+			else
+			{
+				printf("LoadCursor error: failed to create new cursor\n");
+				return;
+			}
 		}
 	}
 }
@@ -600,18 +670,22 @@ void CollectInput(Controller* c)
 	c->move_vector.x		= -keystate[SDL_SCANCODE_A] + keystate[SDL_SCANCODE_D];
 	c->directional_vector.y = -keystate[SDL_SCANCODE_UP] + keystate[SDL_SCANCODE_DOWN];
 	c->directional_vector.x = -keystate[SDL_SCANCODE_LEFT] + keystate[SDL_SCANCODE_RIGHT];
-	c->actions |= ACTION(A_MB_L) * !!(mousestate & SDL_BUTTON_LMASK);
-	c->actions |= ACTION(A_MB_R) * !!(mousestate & SDL_BUTTON_RMASK);
-	c->actions |= ACTION(A_JUMP) * keystate[SDL_SCANCODE_SPACE];
-	c->actions |= ACTION(A_MOVL) * keystate[SDL_SCANCODE_LEFT];
-	c->actions |= ACTION(A_MOVR) * keystate[SDL_SCANCODE_RIGHT];
-	c->actions |= ACTION(A_MOVU) * keystate[SDL_SCANCODE_UP];
-	c->actions |= ACTION(A_MOVD) * keystate[SDL_SCANCODE_DOWN];
-	c->actions |= ACTION(A_PLAY) * keystate[SDL_SCANCODE_F9];
-	c->actions |= ACTION(A_EDIT) * keystate[SDL_SCANCODE_F1];
-	c->actions |= ACTION(A_DBUG) * keystate[SDL_SCANCODE_F11];
-	c->actions |= ACTION(A_ESC) * keystate[SDL_SCANCODE_ESCAPE];
-	c->actions |= ACTION(A_SHFT) * keystate[SDL_SCANCODE_LSHIFT];
+	c->actions |= ACTION(A_MB_L) 	* !!(mousestate & SDL_BUTTON_LMASK);
+	c->actions |= ACTION(A_MB_R) 	* !!(mousestate & SDL_BUTTON_RMASK);
+	c->actions |= ACTION(A_JUMP) 	* keystate[SDL_SCANCODE_SPACE];
+	c->actions |= ACTION(A_MOVL) 	* keystate[SDL_SCANCODE_LEFT];
+	c->actions |= ACTION(A_MOVR) 	* keystate[SDL_SCANCODE_RIGHT];
+	c->actions |= ACTION(A_MOVU) 	* keystate[SDL_SCANCODE_UP];
+	c->actions |= ACTION(A_MOVD) 	* keystate[SDL_SCANCODE_DOWN];
+	c->actions |= ACTION(A_PLAY) 	* keystate[SDL_SCANCODE_F9];
+	c->actions |= ACTION(A_EDIT) 	* keystate[SDL_SCANCODE_F1];
+	c->actions |= ACTION(A_DBUG) 	* keystate[SDL_SCANCODE_F11];
+	c->actions |= ACTION(A_ESC) 	* keystate[SDL_SCANCODE_ESCAPE];
+	c->actions |= ACTION(A_SHFT) 	* keystate[SDL_SCANCODE_LSHIFT];
+	c->actions |= ACTION(A_ONE) 	* keystate[SDL_SCANCODE_1];
+	c->actions |= ACTION(A_TWO) 	* keystate[SDL_SCANCODE_2];
+	c->actions |= ACTION(A_THREE) 	* keystate[SDL_SCANCODE_3];
+	c->actions |= ACTION(A_TAB) 	* keystate[SDL_SCANCODE_TAB];
 
 	SDL_Event e;
 	while (SDL_PollEvent(&e))
@@ -661,63 +735,93 @@ b8 ActionHeld( Controller* c,  u64 action)
 	return ((c->actions & ACTION(action)) && (c->actions & ACTION_PRE(action)));
 }
 
-/*vvvvvvvvvvvvvvvvvvvvvvvvvv DOT PARTICLES vvvvvvvvvvvvvvvvvvvvvvvvvv*/
-Dots* initDots()
+/*vvvvvvvvvvvvvvvvvvvvvvvvvv PARTICLES vvvvvvvvvvvvvvvvvvvvvvvvvv*/
+Particles* InitParticles()
 {
-	Dots* dots = (Dots*)malloc(sizeof(Dots));
-	for (i32 i = 0; i < DOTS_MAX; i++)
-	{
-		dots->dot[i].lifetime		= 0;
-		dots->dot[i].current_life	= 0;
-		dots->dot[i].pos			= ZERO_R2;
-		dots->dot[i].vel			= ZERO_R2;
-		dots->dot[i].acc			= ZERO_R2;
-		dots->dot[i].r = 0;
-		dots->dot[i].g = 0;
-		dots->dot[i].b = 0;
-		dots->dot[i].a = 0;
-		dots->dot[i].r_0 = 0;
-		dots->dot[i].g_0 = 0;
-		dots->dot[i].b_0 = 0;
-		dots->dot[i].a_0 = 0;
-		dots->dot[i].r_1			= 0;
-		dots->dot[i].g_1			= 0;
-		dots->dot[i].b_1			= 0;
-		dots->dot[i].a_1			= 0;
-	}
-	if (dots != NULL)
-		printf("dots initialized.\n");
+	Particles* particles = malloc(sizeof(Particles));
+	memset(particles, 0, sizeof(Particles));
+	// for (i32 i = 0; i < DOTS_MAX; i++)
+	// {
+	// 	particles->dots[i].lifetime		= 0;
+	// 	particles->dots[i].current_life	= 0;
+	// 	particles->dots[i].pos			= ZERO_R2;
+	// 	particles->dots[i].vel			= ZERO_R2;
+	// 	particles->dots[i].acc			= ZERO_R2;
+	// 	particles->dots[i].r = 0;
+	// 	particles->dots[i].g = 0;
+	// 	particles->dots[i].b = 0;
+	// 	particles->dots[i].a = 0;
+	// 	particles->dots[i].r_0 = 0;
+	// 	particles->dots[i].g_0 = 0;
+	// 	particles->dots[i].b_0 = 0;
+	// 	particles->dots[i].a_0 = 0;
+	// 	particles->dots[i].r_1			= 0;
+	// 	particles->dots[i].g_1			= 0;
+	// 	particles->dots[i].b_1			= 0;
+	// 	particles->dots[i].a_1			= 0;
+	// }
+	// for (i32 i = 0; i < BUBBLES_MAX; i++)
+	// {
+	// 	particles->bubbles[i].lifetime		= 0;
+	// 	particles->bubbles[i].current_life	= 0;
+	// 	particles->bubbles[i].pos			= ZERO_R2;
+	// 	particles->bubbles[i].vel			= ZERO_R2;
+	// 	particles->bubbles[i].acc			= ZERO_R2;
+	// 	particles->bubbles[i].rad			= 0.f;
+	// 	particles->bubbles[i].rad_0			= 0.f;
+	// 	particles->bubbles[i].rad_1			= 0.f;
+	// 	particles->bubbles[i].r = 0;
+	// 	particles->bubbles[i].g = 0;
+	// 	particles->bubbles[i].b = 0;
+	// 	particles->bubbles[i].a = 0;
+	// 	particles->bubbles[i].r_0 = 0;
+	// 	particles->bubbles[i].g_0 = 0;
+	// 	particles->bubbles[i].b_0 = 0;
+	// 	particles->bubbles[i].a_0 = 0;
+	// 	particles->bubbles[i].r_1			= 0;
+	// 	particles->bubbles[i].g_1			= 0;
+	// 	particles->bubbles[i].b_1			= 0;
+	// 	particles->bubbles[i].a_1			= 0;
+	// }
+	if (particles != NULL)
+		printf("particles initialized.\n");
 	else
-		printf("dots NOT initialized!\n");
-	return dots;
+		printf("particles could not be initialized!\n");
+	return particles;
 }
 
-b8 SpawnDot(Dots* dots, u16 lifetime, r2 pos, r2 vel, r2 acc, SDL_Color initial_color, SDL_Color final_color)
+
+b8 SpawnBubble(Particles* p, u16 lifetime, r2 pos, r2 vel, r2 acc, r32 depth, r32 initial_radius, r32 final_radius, SDL_Color initial_color, SDL_Color final_color)
 {
-	i32 vacant_dot = -1;
-	for (i32 i = 0; i < DOTS_MAX; i++)
+	i32 id = -1;
+	//TODO: Find way to instantly pick vacant id
+	for (i32 i = 0; i < BUBBLES_MAX; i++)
 	{
-		if (!(dots->dot[i].current_life))
+		if (!(p->bubbles[i].current_life))
 		{
-			vacant_dot = i;
+			id = i;
 			break;
 		}
 	}
-	if (vacant_dot >= 0)
+	if (id >= 0)
 	{
-		dots->dot[vacant_dot].lifetime = lifetime;
-		dots->dot[vacant_dot].current_life = lifetime;
-		dots->dot[vacant_dot].pos = pos;
-		dots->dot[vacant_dot].vel = vel;
-		dots->dot[vacant_dot].acc = acc;
-		dots->dot[vacant_dot].r_0 = initial_color.r;
-		dots->dot[vacant_dot].g_0 = initial_color.g;
-		dots->dot[vacant_dot].b_0 = initial_color.b;
-		dots->dot[vacant_dot].a_0 = initial_color.a;
-		dots->dot[vacant_dot].r_1 = final_color.r;
-		dots->dot[vacant_dot].g_1 = final_color.g;
-		dots->dot[vacant_dot].b_1 = final_color.b;
-		dots->dot[vacant_dot].a_1 = final_color.a;
+		p->bubbles[id].lifetime = lifetime;
+		p->bubbles[id].current_life = lifetime;
+		p->bubbles[id].pos = pos;
+		p->bubbles[id].vel = vel;
+		p->bubbles[id].acc = acc;
+		p->bubbles[id].depth = depth;
+		p->bubbles[id].rad = initial_radius;
+		p->bubbles[id].rad_0 = initial_radius;
+		p->bubbles[id].rad_1 = final_radius;
+		p->bubbles[id].r_0 = initial_color.r;
+		p->bubbles[id].g_0 = initial_color.g;
+		p->bubbles[id].b_0 = initial_color.b;
+		p->bubbles[id].a_0 = initial_color.a;
+		p->bubbles[id].r_1 = final_color.r;
+		p->bubbles[id].g_1 = final_color.g;
+		p->bubbles[id].b_1 = final_color.b;
+		p->bubbles[id].a_1 = final_color.a;
 		return 1;
 	}
 	else
@@ -726,48 +830,123 @@ b8 SpawnDot(Dots* dots, u16 lifetime, r2 pos, r2 vel, r2 acc, SDL_Color initial_
 	}
 }
 
-void tickDots(Dots* dots, u32 t, r32 dt)
+b8 SpawnDot(Particles* p, u16 lifetime, r2 pos, r2 vel, r2 acc, r32 depth, SDL_Color initial_color, SDL_Color final_color)
 {
+	i32 id = -1;
 	for (i32 i = 0; i < DOTS_MAX; i++)
 	{
-		if (dots->dot[i].current_life != 0)
+		if (!(p->dots[i].current_life))
 		{
-			dots->dot[i].current_life--;
-			r32 life_factor = 1.f - (dots->dot[i].current_life / (r32)dots->dot[i].lifetime);
-			dots->dot[i].r = LerpI32(dots->dot[i].r_0, dots->dot[i].r_1, life_factor);
-			dots->dot[i].g = LerpI32(dots->dot[i].g_0, dots->dot[i].g_1, life_factor);
-			dots->dot[i].b = LerpI32(dots->dot[i].b_0, dots->dot[i].b_1, life_factor);
-			dots->dot[i].a = LerpI32(dots->dot[i].a_0, dots->dot[i].a_1, life_factor);
-			dots->dot[i].vel = add_r2(dots->dot[i].vel, r2_mul_x(dots->dot[i].acc, dt));
-			dots->dot[i].pos = add_r2(dots->dot[i].pos, r2_mul_x(dots->dot[i].vel, dt));
+			id = i;
+			break;
+		}
+	}
+	if (id >= 0)
+	{
+		p->dots[id].lifetime = lifetime;
+		p->dots[id].current_life = lifetime;
+		p->dots[id].pos = pos;
+		p->dots[id].vel = vel;
+		p->dots[id].acc = acc;
+		p->dots[id].depth = depth;
+		p->dots[id].r_0 = initial_color.r;
+		p->dots[id].g_0 = initial_color.g;
+		p->dots[id].b_0 = initial_color.b;
+		p->dots[id].a_0 = initial_color.a;
+		p->dots[id].r_1 = final_color.r;
+		p->dots[id].g_1 = final_color.g;
+		p->dots[id].b_1 = final_color.b;
+		p->dots[id].a_1 = final_color.a;
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
+}
+
+void TickParticles(Particles* p, u32 t, r32 dt)
+{
+	//TODO SPEEDUP: remove life_factor calculation (divide in inner loop), and figure out a way to remove check for each particle to see if it's alive or not (remove branching in loop)
+	for (i32 i = 0; i < DOTS_MAX; i++)
+	{
+		if (p->dots[i].current_life != 0)
+		{
+			p->dots[i].current_life--;
+			r32 life_factor = 1.f - (p->dots[i].current_life / (r32)p->dots[i].lifetime);
+			p->dots[i].r = LerpI32(p->dots[i].r_0, p->dots[i].r_1, life_factor);
+			p->dots[i].g = LerpI32(p->dots[i].g_0, p->dots[i].g_1, life_factor);
+			p->dots[i].b = LerpI32(p->dots[i].b_0, p->dots[i].b_1, life_factor);
+			p->dots[i].a = LerpI32(p->dots[i].a_0, p->dots[i].a_1, life_factor);
+			p->dots[i].vel = add_r2(p->dots[i].vel, r2_mul_x(p->dots[i].acc, dt));
+			p->dots[i].pos = add_r2(p->dots[i].pos, r2_mul_x(p->dots[i].vel, dt));
+		}
+	}
+	for (i32 i = 0; i < BUBBLES_MAX; i++)
+	{
+		if (p->bubbles[i].current_life != 0)
+		{
+			p->bubbles[i].current_life--;
+			r32 life_factor = 1.f - (p->bubbles[i].current_life / (r32)p->bubbles[i].lifetime);
+			p->bubbles[i].r = LerpI32(p->bubbles[i].r_0, p->bubbles[i].r_1, life_factor);
+			p->bubbles[i].g = LerpI32(p->bubbles[i].g_0, p->bubbles[i].g_1, life_factor);
+			p->bubbles[i].b = LerpI32(p->bubbles[i].b_0, p->bubbles[i].b_1, life_factor);
+			p->bubbles[i].a = LerpI32(p->bubbles[i].a_0, p->bubbles[i].a_1, life_factor);
+			p->bubbles[i].vel = add_r2(p->bubbles[i].vel, r2_mul_x(p->bubbles[i].acc, dt));
+			p->bubbles[i].pos = add_r2(p->bubbles[i].pos, r2_mul_x(p->bubbles[i].vel, dt));
+			p->bubbles[i].rad = LerpR32(p->bubbles[i].rad_0, p->bubbles[i].rad_1, life_factor);
 		}
 	}
 }
 
-void DrawDots(Viewport* viewport, u32 t, Dots* dots)
+
+
+void DrawParticles(Viewport* viewport, u32 t, Particles* p)
 {
+	//TODO SPEEDUP: remove life checking in these loops somehow
 	for (i32 i = 0; i < DOTS_MAX; i++)
 	{
-		if (dots->dot[i].current_life != 0)
+		if (p->dots[i].current_life != 0)
 		{
-			//i2 dot_cam_pos = PosToCam(dots->dot[i].pos, camera);
-			i2 dot_cam_pos = r2_to_i2(dots->dot[i].pos);
-			SDL_SetRenderDrawColor(viewport->renderer, dots->dot[i].r, dots->dot[i].g, dots->dot[i].b, dots->dot[i].a);
-			SDL_RenderDrawPoint(viewport->renderer, dot_cam_pos.x, dot_cam_pos.y);
+			i2 cam_pos = PosToCam(p->dots[i].pos, p->dots[i].depth, viewport);
+			SDL_SetRenderDrawColor(viewport->renderer, p->dots[i].r, p->dots[i].g, p->dots[i].b, p->dots[i].a);
+			SDL_RenderDrawPoint(viewport->renderer, cam_pos.x, cam_pos.y);
+		}
+	}
+	for (i32 i = 0; i < BUBBLES_MAX; i++)
+	{
+		if (p->bubbles[i].current_life != 0)
+		{
+			i2 cam_pos = PosToCam(p->bubbles[i].pos, p->bubbles[i].depth, viewport);
+			SDL_SetRenderDrawColor(viewport->renderer, p->bubbles[i].r, p->bubbles[i].g, p->bubbles[i].b, p->bubbles[i].a);
+			ZSDL_RenderDrawCircle(viewport, p->bubbles[i].rad * viewport->camera->zoom, cam_pos);
 		}
 	}
 }
 
-void FreeDots(Dots* dots)
+
+
+void FreeParticles(Particles* p)
 {
-	free(dots);
-	printf("Dots freed.\n");
+	if (p != NULL)
+	{
+		free(p);
+		p = NULL;
+		printf("FreeParticles(): Particles freed.\n");
+	}
+	else
+	{
+		printf("FreeParticles(): Particles already NULL.\n");
+	}
 }
+
+
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ DOT PARTICLES ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv CAMERA vvvvvvvvvvvvvvvvvvvvvvvvvv*/
-//pass ZSDL_INTERNAL_WIDTH and HEIGHT from zsdl.h when creating a camera
+
+// creates a new camera at given position and allocates memory for it, returning pointer to allocated memory
 Camera* CreateCamera(r2 pos)
 {
 	Camera* new_camera = (Camera*)malloc(sizeof(Camera));
@@ -799,22 +978,27 @@ void FreeCamera(Camera* camera)
 
 
 
-i2 PosToCam( r2 pos, Viewport* viewport)
+i2 PosToCam( r2 pos, r32 depth, Viewport* viewport)
 {
-	//r32 x = pos.x * viewport->camera->zoom - viewport->camera->pos.x * viewport->camera->zoom
-	r32 x = ((pos.x - viewport->camera->pos.x) * viewport->camera->zoom) + ZSDL_INTERNAL_HALFWIDTH;
-	r32 y = ((pos.y - viewport->camera->pos.y) * viewport->camera->zoom) + ZSDL_INTERNAL_HALFHEIGHT;
-	return r2_to_i2(make_r2(x, y));
-	//r2 result = r2_mul_x(pos, viewport->camera->zoom);
-	//return r2_to_i2(sub_r2(result, r2_mul_x(viewport->camera->pos, viewport->camera->zoom)));
+	r2 para_cpos = r2_mul_x(viewport->camera->pos, 1.f / depth);
+	i2 c_cam = make_i2(ZSDL_INTERNAL_HALFWIDTH, ZSDL_INTERNAL_HALFHEIGHT);
+	r2 delta = r2_mul_x(sub_r2(pos, para_cpos), viewport->camera->zoom);
+	i2 result = add_i2(c_cam, r2_to_i2(delta));
+	return result;
+
+	//old, without depth, works
+	// i2 c_cam = make_i2(ZSDL_INTERNAL_HALFWIDTH, ZSDL_INTERNAL_HALFHEIGHT);
+	// r2 delta = r2_mul_x(sub_r2(pos, viewport->camera->pos), viewport->camera->zoom);
+	// i2 result = add_i2(c_cam, r2_to_i2(delta));
+	// return result;
 }
 
 r2 CamToPos( i2 cam, Viewport* viewport)
 {
-	r32 x = ((cam.x + viewport->camera->pos.x) * viewport->camera->zoom) - ZSDL_INTERNAL_HALFWIDTH;
-	r32 y = ((cam.y + viewport->camera->pos.y) * viewport->camera->zoom) - ZSDL_INTERNAL_HALFHEIGHT;
+	i2 c_cam = make_i2(ZSDL_INTERNAL_HALFWIDTH, ZSDL_INTERNAL_HALFHEIGHT);
+	r32 x = viewport->camera->pos.x + (cam.x/viewport->camera->zoom) - (c_cam.x/viewport->camera->zoom);
+	r32 y = viewport->camera->pos.y + (cam.y/viewport->camera->zoom) - (c_cam.y/viewport->camera->zoom);
 	return make_r2(x, y);
-	//return PixToPos(CamToPix(cam, viewport->camera));
 }
 
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ CAMERA ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
@@ -823,49 +1007,29 @@ r2 CamToPos( i2 cam, Viewport* viewport)
 
 void SetCursor(Viewport* viewport, Assets* assets, u8 new_cursor)
 {
-	SET8IN64(new_cursor, &viewport->settings, ZSDL_SETTINGS_BYTE_ACTIVE_CURSOR);
-	SDL_SetCursor(assets->cur[new_cursor]);
+	if (assets->cur[new_cursor] != NULL)
+	{
+		SET8IN64(new_cursor, &viewport->settings, ZSDL_SETTINGS_BYTE_ACTIVE_CURSOR);
+		SDL_SetCursor(assets->cur[new_cursor]->cursor);
+	}
 }
 
 void RefreshCursors(Viewport* viewport, Assets* assets)
 {
 	i32 pixelscale = GET8IN64(viewport->settings, ZSDL_SETTINGS_BYTE_PIXELSCALE);
-	static i2 cursor_hotspots[ASSETBANK_CURSORS_MAX] = 
-	{
-		{ZSDL_CURSOR_POINT_HOT_X, ZSDL_CURSOR_POINT_HOT_Y},
-		{ZSDL_CURSOR_HAND_HOT_X, ZSDL_CURSOR_HAND_HOT_Y},
-		{ZSDL_CURSOR_GRAB_HOT_X, ZSDL_CURSOR_GRAB_HOT_Y},
-		{ZSDL_CURSOR_CROSS_HOT_X, ZSDL_CURSOR_CROSS_HOT_Y},
-	};
 	for (i32 i = 0; i < ASSETBANK_CURSORS_MAX; i++)
 	{
-		SDL_Surface* cursor_scaled = SDL_CreateRGBSurface(0, ZSDL_CURSOR_BASE_SIZE * pixelscale, ZSDL_CURSOR_BASE_SIZE * pixelscale, 32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff);
-		SDL_BlitScaled(assets->sur[i], NULL, cursor_scaled, NULL);
-		SDL_FreeCursor(assets->cur[i]);
-		assets->cur[i] = SDL_CreateColorCursor(cursor_scaled, cursor_hotspots[i].x * pixelscale, cursor_hotspots[i].y * pixelscale);
-		SDL_FreeSurface(assets->sur[i]);
-		assets->sur[i] = cursor_scaled;
+		if (assets->cur[i] != NULL)
+		{
+			SDL_Surface* cursor_scaled = SDL_CreateRGBSurface(0, ZSDL_CURSOR_BASE_SIZE * pixelscale, ZSDL_CURSOR_BASE_SIZE * pixelscale, 32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff);
+			SDL_BlitScaled(assets->cur[i]->source_bitmap, NULL, cursor_scaled, NULL);
+			SDL_FreeCursor(assets->cur[i]->cursor);
+			assets->cur[i]->cursor = SDL_CreateColorCursor(cursor_scaled, assets->cur[i]->hotspot.x * pixelscale, assets->cur[i]->hotspot.y * pixelscale);
+			SDL_FreeSurface(cursor_scaled);
+		}
 	}
 	SetCursor(viewport, assets, GET8IN64(viewport->settings, ZSDL_SETTINGS_BYTE_ACTIVE_CURSOR));
-	// //reblit cursor surface to cursor to scale when window scale changes
-	// ini_t *filepaths = ini_load(INI_FILEPATHS);
-	// SDL_Surface* cursor_surface = IMG_Load(ini_get(filepaths, "cursors", "crosshair"));
-	// u32 p = computePixelScale(viewport);
-	// SDL_Surface* cursor_scaled = SDL_CreateRGBSurface(0, CUR_BASE_SIZE*p, CUR_BASE_SIZE*p, 32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff);
-	// SDL_BlitScaled(cursor_surface, NULL, cursor_scaled, NULL);
-	// assets->cur[CUR_CROSSHAIR] = SDL_CreateColorCursor(cursor_scaled, CUR_CROSSHAIR_HOT*p, CUR_CROSSHAIR_HOT*p);
-	// if (assets->cur[CUR_CROSSHAIR] == NULL)
-	// 	printf("CURSOR ERROR! %s", SDL_GetError());
-	// SDL_FreeSurface(cursor_scaled);
 
-	// cursor_surface = IMG_Load(ini_get(filepaths, "cursors", "hand"));
-	// cursor_scaled = SDL_CreateRGBSurface(0, CUR_BASE_SIZE*p, CUR_BASE_SIZE*p, 32, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff);
-	// SDL_BlitScaled(cursor_surface, NULL, cursor_scaled, NULL);
-	// assets->cur[CUR_HAND] = SDL_CreateColorCursor(cursor_scaled, CUR_HAND_HOT*p, CUR_HAND_HOT*p);
-	
-	// SDL_FreeSurface(cursor_scaled);
-	// SDL_FreeSurface(cursor_surface);
-	// ini_free(filepaths);
 }
 
 void ToggleFullscreen(Viewport* viewport)
@@ -933,8 +1097,7 @@ void ComputePixelScale(Viewport* viewport)
 		else
 		{
 			// On success, print the current display mode.
-			SDL_Log("Display #%d: current display mode is %dx%dpx @ %dhz.", display_index, current.w, current.h,
-					current.refresh_rate);
+			//SDL_Log("Display #%d: current display mode is %dx%dpx @ %dhz.", display_index, current.w, current.h, current.refresh_rate);
 			screen_height = current.h;
 			screen_width  = current.w;
 		}
@@ -943,8 +1106,11 @@ void ComputePixelScale(Viewport* viewport)
 	{
 		SDL_GetWindowSize(viewport->window, &screen_width, &screen_height);
 	}
-	u8 renderscale = (screen_width < screen_height) * (screen_width / ZSDL_INTERNAL_WIDTH) +
-					 (screen_width >= screen_height) * (screen_height / ZSDL_INTERNAL_HEIGHT);
+	i32 renderscale_x = screen_width / ZSDL_INTERNAL_WIDTH;
+	i32 renderscale_y = screen_height / ZSDL_INTERNAL_HEIGHT;
+	u8 renderscale = MinI32(renderscale_x, renderscale_y);
+	//u8 renderscale = (screen_width < screen_height) * (screen_width / ZSDL_INTERNAL_WIDTH) +
+	//				 (screen_width >= screen_height) * (screen_height / ZSDL_INTERNAL_HEIGHT);
 	if (renderscale == 0)
 		renderscale = 1;
 	SET8IN64(renderscale, &viewport->settings, ZSDL_SETTINGS_BYTE_PIXELSCALE);
@@ -1008,13 +1174,82 @@ void DrawNumber(Viewport* viewport, SDL_Texture* texture, u32 number, i2 size_sr
 		SDL_RenderCopy(viewport->renderer, texture, &src, &dst);
 	}
 }
+
+void ZSDL_RenderDrawCircle(Viewport* viewport, u32 radius, i2 center)
+{
+	u32 diameter = (radius * 2);
+
+	i32 x = (radius - 1);
+	i32 y = 0;
+	i32 tx = 1;
+	i32 ty = 1;
+	i32 error = (tx - diameter);
+
+
+	while (x >= y)
+	{
+
+      	//  Each of the following renders an octant of the circle
+      	SDL_RenderDrawPoint(viewport->renderer, center.x + x, center.y - y);
+      	SDL_RenderDrawPoint(viewport->renderer, center.x + x, center.y + y);
+      	SDL_RenderDrawPoint(viewport->renderer, center.x - x, center.y - y);
+      	SDL_RenderDrawPoint(viewport->renderer, center.x - x, center.y + y);
+      	SDL_RenderDrawPoint(viewport->renderer, center.x + y, center.y - x);
+      	SDL_RenderDrawPoint(viewport->renderer, center.x + y, center.y + x);
+      	SDL_RenderDrawPoint(viewport->renderer, center.x - y, center.y - x);
+      	SDL_RenderDrawPoint(viewport->renderer, center.x - y, center.y + x);
+
+		if (error <= 0)
+		{
+			++y;
+			error += ty;
+			ty += 2;
+		}
+
+		if (error > 0)
+		{
+			--x;
+			tx += 2;
+			error += (tx - diameter);
+		}
+	}
+}
+
+void DrawNineSliced(Viewport* viewport, struct SDL_Texture* source_texture, i2 src_loc, i2 dst_loc, i2 dst_siz, i32 slice_dimensions)
+{
+
+	SDL_Rect src_slice = { src_loc.x, src_loc.y, slice_dimensions, slice_dimensions };
+	SDL_Rect dst_slice = { dst_loc.x, dst_loc.y, slice_dimensions, slice_dimensions };
+
+	i32 x_coord[3] = { dst_loc.x, dst_loc.x + slice_dimensions, dst_loc.x + dst_siz.x - slice_dimensions };
+	i32 y_coord[3] = { dst_loc.y, dst_loc.y + slice_dimensions, dst_loc.y + dst_siz.y - slice_dimensions };
+	i32 widths[3] = { slice_dimensions, dst_siz.x - (2 * slice_dimensions), slice_dimensions };
+	i32 heights[3] = { slice_dimensions, dst_siz.y - (2 * slice_dimensions), slice_dimensions };
+	
+	for (i32 v = 0; v < 3; v++)
+	{
+		for (i32 u = 0; u < 3; u++)
+		{
+			src_slice.x = src_loc.x + u * slice_dimensions;
+			src_slice.y = src_loc.y + v * slice_dimensions;
+
+			dst_slice.x = x_coord[u];
+			dst_slice.y = y_coord[v];
+			dst_slice.w = widths[u];
+			dst_slice.h = heights[v];
+
+			SDL_RenderCopy(viewport->renderer, source_texture, &src_slice, &dst_slice);
+		}
+	}
+}
+
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ RENDER SUPPORT FUNCTIONS ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv FONT TEXT DRAWING vvvvvvvvvvvvvvvvvvvvvvvvvv*/
-void DrawTextWorld(Viewport* viewport, zFont* font, SDL_Color color, r2 pos, const char* text)
+void DrawTextWorld(Viewport* viewport, zFont* font, SDL_Color color, r2 pos, r32 depth, const char* text)
 {
 	i32 i = 0;
-	i2 screen_pos = PosToCam(pos, viewport);
+	i2 screen_pos = PosToCam(pos, depth, viewport);
 	SDL_Rect src = {0, 0, font->siz.x, font->siz.y};
 	SDL_Rect dst = {screen_pos.x, screen_pos.y, font->siz.x, font->siz.y};
 	SDL_SetTextureColorMod(font->glyphs, color.r, color.g, color.b);

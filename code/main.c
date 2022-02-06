@@ -18,9 +18,10 @@ typedef struct
 	Game* game;
 	Controller* controller;
 	Assets* assets;
-	Dots* dots;
+	Particles* particles;
 	Gamestate gamestate_now;
 	Gamestate gamestate_new;
+	u32 t_0_gamestate_change;
 } Engine;
 
 void mainloop(void *arg)
@@ -29,6 +30,7 @@ void mainloop(void *arg)
 	static u32 current_time = 0;
 	static u32 time_accumulator = 0;
 	static u32 t = 0;
+	static u32 t_r = 0; //separate tick counter for counting rendered frames
 
 	//*vvvvvvvvvvvvvvvvvvvvvvvvvv GAMELOOP BEGIN vvvvvvvvvvvvvvvvvvvvvvvvvv*/
 		u32 new_time   = SDL_GetTicks();
@@ -37,6 +39,8 @@ void mainloop(void *arg)
 			frame_time = 250; // avoid spiral of death scenario
 		current_time = new_time;
 		time_accumulator += frame_time;
+
+
 
 /* LOGIC UPDATE IN FIXED TIMESTEPS */
 		while (time_accumulator >= DT_MS)
@@ -108,6 +112,7 @@ printf("Game entering state \t%s...\n", GamestateName(engine->gamestate_new));
 	        		switch (engine->gamestate_new) 
 	        		{
 	            		case GAMESTATE_INIT:
+							engine->viewport->camera->zoom = ZSDL_CAMERA_MIN_ZOOM;
 	            		    break;
 	            		case GAMESTATE_MAIN:
 	            		    break;
@@ -128,6 +133,7 @@ printf("Game entering state \t%s...\n", GamestateName(engine->gamestate_new));
 printf("Gamestate change complete.\n");
 #endif
 					engine->gamestate_now = engine->gamestate_new;
+					engine->t_0_gamestate_change = t;
 	    		} // end if transition allowed
 	    		else //keep current state, but push back and update old state
 	    		{
@@ -146,15 +152,15 @@ printf("Gamestate change from %s \tto %s was deemed illegal!\n", GamestateName(e
 					engine->gamestate_new = GAMESTATE_MAIN;
 	                break;
 	            case GAMESTATE_MAIN:
-					engine->gamestate_new = UpdateMain(t, DT_SEC, engine->viewport, engine->game, engine->controller, engine->dots, engine->assets);
+					engine->gamestate_new = UpdateMain(t, DT_SEC, engine->t_0_gamestate_change, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets);
 	                break;
 	            case GAMESTATE_PLAY:
-					engine->gamestate_new = UpdatePlay(t, DT_SEC, engine->viewport, engine->game, engine->controller, engine->dots, engine->assets);
+					engine->gamestate_new = UpdatePlay(t, DT_SEC, engine->t_0_gamestate_change, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets);
 	                break;
 	            case GAMESTATE_EVNT:
 	                break;
 	            case GAMESTATE_LOSE:
-					engine->gamestate_new = UpdateLose(t, DT_SEC, engine->viewport, engine->game, engine->controller, engine->dots, engine->assets);
+					engine->gamestate_new = UpdateLose(t, DT_SEC, engine->t_0_gamestate_change, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets);
 	                break;
 	            case GAMESTATE_GOAL:
 #if PRINT_DBG_GAMESTATE
@@ -172,7 +178,7 @@ printf("Gamestate entered state it shouldn't be in: %s \tto %s !\n", GamestateNa
 		            break;
 			}
 
-			tickDots(engine->dots, t, DT_SEC);
+			TickParticles(engine->particles, t, DT_SEC);
 			// advance time
 			t++;
 			time_accumulator -= DT_MS;
@@ -187,15 +193,15 @@ printf("Gamestate entered state it shouldn't be in: %s \tto %s !\n", GamestateNa
 			case GAMESTATE_INIT:
 			break;
 			case GAMESTATE_MAIN:
-				RenderMain(engine->viewport, engine->game, engine->controller, engine->dots, engine->assets);
+				RenderMain(t_r, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets);
 			break;
 			case GAMESTATE_PLAY:
-				RenderPlay(engine->viewport, engine->game, engine->controller, engine->dots, engine->assets);
+				RenderPlay(t_r, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets);
 			break;
 			case GAMESTATE_EVNT:
 			break;
 			case GAMESTATE_LOSE:
-				RenderLose(engine->viewport, engine->game, engine->controller, engine->dots, engine->assets);
+				RenderLose(t_r, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets);
 			break;
 			case GAMESTATE_GOAL:
 			break;
@@ -204,8 +210,9 @@ printf("Gamestate entered state it shouldn't be in: %s \tto %s !\n", GamestateNa
 			case GAMESTATE_EXIT:
 			break;
 		}
+		t_r++;
 		SDL_SetRenderTarget(engine->viewport->renderer, engine->viewport->render_layer[ZSDL_RENDERLAYER_ENTITIES]);
-		DrawDots(engine->viewport, t, engine->dots);
+		DrawParticles(engine->viewport, t, engine->particles);
 		FinalizeRenderAndPresent(engine->viewport);
 	//main loop end
 }
@@ -215,35 +222,42 @@ int main(int argc, char* argv[])
 {
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv INIT vvvvvvvvvvvvvvvvvvvvvvvvvv*/
 	SetupSDL();
-	Viewport* viewport = CreateViewport("zengine");
+	Viewport* viewport = CreateViewport("e x p l o r e r s");
 	Game* game = CreateGame();
 	Controller* controller = CreateController();
 	Assets* assets = CreateAssets(viewport);
 	//Menu* menu = CreateMenu();
 	viewport->camera = CreateCamera(ZERO_R2);
-	Dots* dots = initDots();
+	Particles* particles = InitParticles();
 	Engine* engine = (Engine*)malloc(sizeof(Engine));
 	engine->viewport = viewport;
 	engine->game = game;
 	engine->controller = controller;
 	engine->assets = assets;
-	engine->dots = dots;
+	engine->particles = particles;
 	engine->gamestate_now = GAMESTATE_INIT;
 	engine->gamestate_new = GAMESTATE_INIT;
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ INIT ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv LOAD ASSETS vvvvvvvvvvvvvvvvvvvvvvvvvv*/
 //LoadTexture(x);
-LoadFont(assets, 0, viewport->renderer, "assets/font/font_zsys.png");
-LoadFont(assets, 1, viewport->renderer, "assets/font/font_zsys_6x6.png");
-LoadCursor(assets, ZSDL_CURSOR_POINT, ZSDL_CURSOR_POINT_HOT_X, ZSDL_CURSOR_POINT_HOT_Y, "assets/cursor/cur_zsys_point.png");
-LoadCursor(assets, ZSDL_CURSOR_HAND, ZSDL_CURSOR_HAND_HOT_X, ZSDL_CURSOR_HAND_HOT_Y, "assets/cursor/cur_zsys_hand.png");
-LoadCursor(assets, ZSDL_CURSOR_GRAB, ZSDL_CURSOR_GRAB_HOT_X, ZSDL_CURSOR_GRAB_HOT_Y, "assets/cursor/cur_zsys_grab.png");
-LoadCursor(assets, ZSDL_CURSOR_CROSS, ZSDL_CURSOR_CROSS_HOT_X, ZSDL_CURSOR_CROSS_HOT_Y, "assets/cursor/cur_zsys_cross.png");
+LoadFont(assets, FONT_ID_ZSYS, viewport->renderer, FONT_PATH_ZSYS);
+LoadCursor(assets, CUR_POINT, CUR_PATH_POINT);
+LoadCursor(assets, CUR_CLICK, CUR_PATH_CLICK);
+LoadCursor(assets, CUR_HAND, CUR_PATH_HAND);
+LoadCursor(assets, CUR_GRAB, CUR_PATH_GRAB);
+LoadCursor(assets, CUR_CROSS, CUR_PATH_CROSS);
+LoadSound(assets, SFX_SELECT, SFX_PATH_SELECT);
+LoadSound(assets, SFX_TAP, SFX_PATH_TAP);
+LoadSound(assets, SFX_HOVER, SFX_PATH_HOVER);
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ LOAD ASSETS ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
+SetCursor(viewport, assets, CUR_POINT);
 
-SetCursor(viewport, assets, ZSDL_CURSOR_HAND);
-
+//START IN FULLSCREEN
+// ToggleFullscreen(engine->viewport);
+// ComputePixelScale(engine->viewport);
+// CalculateScreen(engine->viewport);
+// RefreshCursors(engine->viewport, engine->assets);
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv MAIN LOOP vvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #ifdef __EMSCRIPTEN__
@@ -258,7 +272,7 @@ SetCursor(viewport, assets, ZSDL_CURSOR_HAND);
 printf("\n~~~Exiting game!~~~\n");
 #endif		
 	// free all things
-	FreeDots(dots);
+	FreeParticles(particles);
 //	FreeMenu(menu);
 	FreeController(controller);
 	FreeAssets(assets);

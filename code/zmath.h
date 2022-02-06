@@ -21,8 +21,9 @@
 #define DIR_R_W	(r2){-1.f, 0.f }
 #define DIR_R_E	(r2){1.f , 0.f }
 
-#define ZPI 3.14159
-#define ZPI_THIRDS 1.0471975
+#define ZPI 3.14159f
+#define ZPI_HALF 1.570796f
+#define ZPI_THIRDS 1.0471975f
 #define COS_PI_THIRDS 0.5f
 #define SIN_PI_THIRDS 0.866f
 #define COS_PI_SIXTHS 0.866f
@@ -37,13 +38,19 @@
 /*^^^^^^^^^^^^^^^^^^^^ CONSTANTSANTS END ^^^^^^^^^^^^^^^^^^^^*/
 
 /*vvvvvvvvvvvvvvvvvvvv STATICS BEGIN vvvvvvvvvvvvvvvvvvvv*/
-u8 SINE(u8 a);
-r32 SINE_R32(u8 a);
+u8 NSIN(u8 a);
+u8 NCOS(u8 a);
+r32 RSIN(u8 a);
+r32 RCOS(u8 a);
 r32 CURVE(r32 t, r32 k);
 r32 SMOOTH(r32 t, r32 k);
+r32 PARAMETRIC(r32 t);
 
 r32 RNG();
 r32 RNEG();
+r32 COINTOSS();
+void SEED_ZRNG();
+r32 ZRNG();
 u32 RUINTG(u32 min, u32 max);
 /*^^^^^^^^^^^^^^^^^^^^ STATICS END ^^^^^^^^^^^^^^^^^^^^*/
 
@@ -66,6 +73,7 @@ r32 ClampR32(r32 a,  r32 min,  r32 max);
 u32	LerpU32(i32 a, i32 b, r32 alpha);
 i32	LerpI32(i32 a, i32 b, r32 alpha);
 r32 LerpR32(r32 a, r32 b, r32 alpha);
+u8 LerpU8(u8 a, u8 b, r32 alpha);
 
 u32	MinU32(u32 a,  u32 b);
 i32	MinI32(i32 a,  i32 b);
@@ -80,6 +88,11 @@ r32 SignR32(r32 a);
 
 i32 AbsI32(i32 a);
 r32 AbsR32(r32 a);
+
+r32 BiasR32(r32 a);
+
+
+r32 Wrap(r32 a);
 /*^^^^^^^^^^^^^^^^^^^^ HELPERS END ^^^^^^^^^^^^^^^^^^^^*/
 
 
@@ -199,6 +212,8 @@ r2 r2_rot_90_cw( r2 a);
 r2 r2_rot_60_ccw(r2 a);
 
 r2 r2_rot_t(r2 a, r32 t);
+
+r2 r32_to_rot(r32 a);
 
 i2 i2_sign( i2 a);
 r2 r2_sign( r2 a);
