@@ -9,6 +9,10 @@
 #define T_TILE_ATLAS 0
 #define T_UI_ATLAS 1
 #define T_PLAYER_ATLAS 2
+//texture paths
+#define T_UI_ATLAS_PATH "assets/texture/zsys_nineslice.png"
+//texture constants
+#define ZSYS_NINESLICE_DIMENSIONS 8
 
 //cursors
 #define CUR_POINT 0

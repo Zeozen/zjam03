@@ -222,7 +222,7 @@ int main(int argc, char* argv[])
 {
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv INIT vvvvvvvvvvvvvvvvvvvvvvvvvv*/
 	SetupSDL();
-	Viewport* viewport = CreateViewport("e x p l o r e r s");
+	Viewport* viewport = CreateViewport("zengine");
 	Game* game = CreateGame();
 	Controller* controller = CreateController();
 	Assets* assets = CreateAssets(viewport);
@@ -240,16 +240,20 @@ int main(int argc, char* argv[])
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ INIT ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv LOAD ASSETS vvvvvvvvvvvvvvvvvvvvvvvvvv*/
-//LoadTexture(x);
+LoadTexture(assets, T_UI_ATLAS, viewport->renderer, T_UI_ATLAS_PATH);
+
 LoadFont(assets, FONT_ID_ZSYS, viewport->renderer, FONT_PATH_ZSYS);
+
 LoadCursor(assets, CUR_POINT, CUR_PATH_POINT);
 LoadCursor(assets, CUR_CLICK, CUR_PATH_CLICK);
 LoadCursor(assets, CUR_HAND, CUR_PATH_HAND);
 LoadCursor(assets, CUR_GRAB, CUR_PATH_GRAB);
 LoadCursor(assets, CUR_CROSS, CUR_PATH_CROSS);
+
 LoadSound(assets, SFX_SELECT, SFX_PATH_SELECT);
 LoadSound(assets, SFX_TAP, SFX_PATH_TAP);
 LoadSound(assets, SFX_HOVER, SFX_PATH_HOVER);
+
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ LOAD ASSETS ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 SetCursor(viewport, assets, CUR_POINT);
 

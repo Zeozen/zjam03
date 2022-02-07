@@ -8,23 +8,16 @@
 #include "zmath.h"
 
 typedef struct ZSDL_Cursor ZSDL_Cursor;
-
-/*vvvvvvvvvvvvvvvvvvvvvvvvvv CAMERA vvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#define ZSDL_CAMERA_MAX_ZOOM 8.f
-#define ZSDL_CAMERA_MIN_ZOOM 0.25f
-typedef struct Camera
-{
-    r2 pos;
-    r2 aim;
-    i2 off;
-    r32 zoom;
-} Camera;
-
-Camera* CreateCamera(r2 pos);
-void FreeCamera(Camera* camera);
-
-
-/*^^^^^^^^^^^^^^^^^^^^^^^^^^ CAMERA ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
+typedef struct Viewport Viewport;
+typedef struct Camera Camera;
+typedef struct Controller Controller;
+typedef struct Assets Assets;
+typedef struct Button Button;
+typedef struct Menu Menu;
+typedef struct Dot Dot;
+typedef struct Bubble Bubble;
+typedef struct Particles Particles;
+typedef struct ZSDL_Font zFont;
 
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv VIEWPORT vvvvvvvvvvvvvvvvvvvvvvvvvv*/
@@ -59,7 +52,7 @@ typedef enum
 #define ZSDL_SETTINGS_BYTE_PIXELSCALE 3
 #define ZSDL_SETTINGS_BYTE_FADE_ALPHA 4
 #define ZSDL_SETTINGS_BYTE_FADE_COLOR 5
-typedef struct
+typedef struct Viewport
 {
     SDL_Window*     window;
     SDL_Surface*    surface;
@@ -88,7 +81,7 @@ void ToggleFullscreen(Viewport* viewport);
 #define ZFONT_DEFAULT_MAX_COL 16
 #define ZFONT_DEFAULT_MAX_ROW 6
 #define ZFONT_ASCII_OFFSET 32
-typedef struct
+typedef struct ZSDL_Font
 {
     SDL_Texture* glyphs;
     i2 siz;
@@ -108,7 +101,7 @@ void DrawTextScreen(Viewport* viewport, zFont* font, SDL_Color color, i2 loc, co
 #define ASSETBANK_FONTS_MAX 2
 #define ASSETBANK_STRINGS_MAX 1
 
-typedef struct
+typedef struct Assets
 {
 	SDL_Texture* tex[ASSETBANK_TEXTURES_MAX];
 	Mix_Chunk* sfx[ASSETBANK_SOUNDS_MAX];
@@ -161,7 +154,7 @@ void LoadFont(Assets* assets, i32 identifier, SDL_Renderer* renderer, const char
 #define A_FOUR 21 //numbers, usually action or hotbar
 #define A_TAB 22
 
-typedef struct 
+typedef struct Controller
 {
     u64 actions;
 	i2  move_vector;
@@ -179,10 +172,27 @@ b8 ActionReleased(Controller* c, u64 action);
 b8 ActionHeld(Controller* c, u64 action);
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ INPUT CONTROLLER ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
+/*vvvvvvvvvvvvvvvvvvvvvvvvvv CAMERA vvvvvvvvvvvvvvvvvvvvvvvvvv*/
+#define ZSDL_CAMERA_MAX_ZOOM 8.f
+#define ZSDL_CAMERA_MIN_ZOOM 0.25f
+typedef struct Camera
+{
+    r2 pos;
+    r2 aim;
+    i2 off;
+    r32 zoom;
+} Camera;
+
+Camera* CreateCamera(r2 pos);
+void FreeCamera(Camera* camera);
+
+
+/*^^^^^^^^^^^^^^^^^^^^^^^^^^ CAMERA ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
+
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv PARTICLES vvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #define DOTS_MAX 200
-typedef struct
+typedef struct Dot
 {
 	u16 lifetime;
 	u16 current_life;
@@ -205,7 +215,7 @@ typedef struct
 } Dot;
 
 #define BUBBLES_MAX 128
-typedef struct
+typedef struct Bubble
 {
 	u16 lifetime;
 	u16 current_life;
@@ -231,7 +241,7 @@ typedef struct
 } Bubble;
 
 
-typedef struct
+typedef struct Particles
 {
 	Dot dots[DOTS_MAX];
 	Bubble bubbles[BUBBLES_MAX];
@@ -264,7 +274,7 @@ typedef enum
     BUTTON_STATE_HELD       = 0x04,
     BUTTON_STATE_RELEASED   = 0x05
 } E_BUTTON_STATE;
-typedef struct 
+typedef struct Button
 {
     SDL_Rect src;
     SDL_Rect dst;
@@ -275,7 +285,8 @@ typedef struct
 #define BTN_QUIT 1
 #define MENU_TITLE_NUM_BTN 2 //play, quit
 #define MENU_VICTORY_NUM_BTN 2 //retry, quit
-typedef struct
+
+typedef struct Menu
 {
     Button* title[MENU_TITLE_NUM_BTN];
     Button* victory[MENU_VICTORY_NUM_BTN];
