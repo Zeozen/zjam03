@@ -52,7 +52,7 @@ Mkfile.old
 dkms.conf
 
 #assets
-.assets/
+assets/
 
 #misc
-.out/
+out/
