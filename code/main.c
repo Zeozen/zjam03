@@ -4,7 +4,7 @@
 #include "update.h"
 #include "render.h"
 #include "zsdl.h"
-#define PRINT_DBG_GAMESTATE 0
+
 #ifdef __EMSCRIPTEN__
 #include "emscripten.h"
 #endif
@@ -19,6 +19,7 @@ typedef struct
 	Controller* controller;
 	Assets* assets;
 	Particles* particles;
+	Gamestate gamestate_old;
 	Gamestate gamestate_now;
 	Gamestate gamestate_new;
 	u32 t_0_gamestate_change;
@@ -45,7 +46,7 @@ void mainloop(void *arg)
 /* LOGIC UPDATE IN FIXED TIMESTEPS */
 		while (time_accumulator >= DT_MS)
 		{
-			//gamestate_old = gamestate_now;
+			engine->gamestate_old = engine->gamestate_now;
 			CollectInput(engine->controller);
 
 			if (ActionPressed(engine->controller, A_RSIZ))
@@ -81,8 +82,8 @@ void mainloop(void *arg)
 	    		{
 
 /*	exit and cleanup current state	*/
-#if PRINT_DBG_GAMESTATE
-printf("Game exiting state \t%s...\n", GamestateName(engine->gamestate_now));
+#if DEBUGPRNT
+printf("Game exiting state \t%s...\n", GetGamestateName(engine->gamestate_now));
 #endif
 	        		switch (engine->gamestate_now) 
 	        		{
@@ -103,11 +104,11 @@ printf("Game exiting state \t%s...\n", GamestateName(engine->gamestate_now));
 	            		case GAMESTATE_EXIT:
 	            		    break;
 	        		}
-					//gamestate_old = engine->gamestate_now;
+					engine->gamestate_old = engine->gamestate_now;
 
 /*	enter and setup next state	*/
-#if PRINT_DBG_GAMESTATE
-printf("Game entering state \t%s...\n", GamestateName(engine->gamestate_new));
+#if DEBUGPRNT
+printf("Game entering state \t%s...\n", GetGamestateName(engine->gamestate_new));
 #endif
 	        		switch (engine->gamestate_new) 
 	        		{
@@ -129,7 +130,7 @@ printf("Game entering state \t%s...\n", GamestateName(engine->gamestate_new));
 	            		case GAMESTATE_EXIT:
 	            		    break;
 	        		}
-#if PRINT_DBG_GAMESTATE
+#if DEBUGPRNT
 printf("Gamestate change complete.\n");
 #endif
 					engine->gamestate_now = engine->gamestate_new;
@@ -137,9 +138,9 @@ printf("Gamestate change complete.\n");
 	    		} // end if transition allowed
 	    		else //keep current state, but push back and update old state
 	    		{
-					//gamestate_old = engine->gamestate_now;
-#if PRINT_DBG_GAMESTATE
-printf("Gamestate change from %s \tto %s was deemed illegal!\n", GamestateName(engine->gamestate_now), GamestateName(engine->gamestate_new));
+					engine->gamestate_old = engine->gamestate_now;
+#if DEBUGPRNT
+printf("Gamestate change from %s \tto %s was deemed illegal!\n", GetGamestateName(engine->gamestate_now), GetGamestateName(engine->gamestate_new));
 #endif
 	    		}
 			}
@@ -163,14 +164,14 @@ printf("Gamestate change from %s \tto %s was deemed illegal!\n", GamestateName(e
 					engine->gamestate_new = UpdateLose(t, DT_SEC, engine->t_0_gamestate_change, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets);
 	                break;
 	            case GAMESTATE_GOAL:
-#if PRINT_DBG_GAMESTATE
-printf("Gamestate entered state it shouldn't be in: %s \tto %s !\n", GamestateName(gamestate_old), GamestateName(engine->gamestate_now));
+#if DEBUGPRNT
+printf("Gamestate entered state it shouldn't be in: %s \tto %s !\n", GetGamestateName(engine->gamestate_old), GetGamestateName(engine->gamestate_now));
 #endif					
 					engine->gamestate_new = GAMESTATE_EXIT;
 	                break;
 	            case GAMESTATE_EDIT:
-#if PRINT_DBG_GAMESTATE
-printf("Gamestate entered state it shouldn't be in: %s \tto %s !\n", GamestateName(gamestate_old), GamestateName(engine->gamestate_now));
+#if DEBUGPRNT
+printf("Gamestate entered state it shouldn't be in: %s \tto %s !\n", GetGamestateName(engine->gamestate_old), GetGamestateName(engine->gamestate_now));
 #endif					
 					engine->gamestate_new = GAMESTATE_EXIT;
 	                break;
@@ -259,9 +260,10 @@ SetCursor(viewport, assets, CUR_POINT);
 
 //START IN FULLSCREEN
 // ToggleFullscreen(engine->viewport);
-// ComputePixelScale(engine->viewport);
-// CalculateScreen(engine->viewport);
-// RefreshCursors(engine->viewport, engine->assets);
+ComputePixelScale(engine->viewport);
+CalculateScreen(engine->viewport);
+RefreshCursors(engine->viewport, engine->assets);
+
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv MAIN LOOP vvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #ifdef __EMSCRIPTEN__
@@ -272,7 +274,7 @@ SetCursor(viewport, assets, CUR_POINT);
 #endif
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ MAIN LOOP ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
-#if PRINT_DBG_GAMESTATE
+#if DEBUGPRNT
 printf("\n~~~Exiting game!~~~\n");
 #endif		
 	// free all things

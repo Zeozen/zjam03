@@ -22,6 +22,7 @@ typedef struct ZSDL_Font zFont;
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv VIEWPORT vvvvvvvvvvvvvvvvvvvvvvvvvv*/
 // 1/5th of full HD(1920x1080) =  384 x 216
+
 #define ZSDL_INTERNAL_WIDTH 384
 #define ZSDL_INTERNAL_HEIGHT 216
 #define ZSDL_INTERNAL_HALFWIDTH 192

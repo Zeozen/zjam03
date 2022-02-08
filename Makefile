@@ -27,7 +27,7 @@ ifeq ($(MAKECMDGOALS),debug)
 	LDFLAGS += -mconsole
 endif
 endif
-debug: CFLAGS += -g -Og
+debug: CFLAGS += -g -Og -D DEBUGPRNT
 debug: build
 
 release: CFLAGS += -O3
