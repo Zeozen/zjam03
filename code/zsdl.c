@@ -1,4 +1,6 @@
+#include <string.h>
 #include "zsdl.h"
+#include "ini.h"
 
 
 b8 SetupSDL()
@@ -21,7 +23,7 @@ b8 SetupSDL()
 
 		//init SDL_Mixer
 		Mix_Init(MIX_INIT_OGG);
-		Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 2, 256);
+		Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 2, 4096);
 		Mix_AllocateChannels(ASSETBANK_SOUNDS_MAX);
 		Mix_ReserveChannels(ASSETBANK_SOUNDS_MAX);
 		for (i32 i = 0; i < ASSETBANK_SOUNDS_MAX; i++)
@@ -38,7 +40,7 @@ Viewport* CreateViewport(const char* window_title)
 	Viewport* viewport = (Viewport*)malloc(sizeof(Viewport));
 	viewport->settings = 0;
 	#ifdef __EMSCRIPTEN__
-	u8 pixel_size_web = 3;
+	u8 pixel_size_web = 2;
 	viewport->screen = (SDL_Rect){0, 0, ZSDL_INTERNAL_WIDTH*pixel_size_web, ZSDL_INTERNAL_HEIGHT*pixel_size_web};
 	SET8IN64(pixel_size_web, &viewport->settings, ZSDL_SETTINGS_BYTE_PIXELSCALE);
 	#else
@@ -241,64 +243,6 @@ void FreeAssets(Assets* assets)
 	printf("assets freed\n");
 }
 
-Button* CreateButton(SDL_Rect source, SDL_Rect destination)
-{
-    Button* btn = (Button*)malloc(sizeof(Button));
-	btn->state = 0;
-	btn->src = source;
-	btn->dst = destination;
-	return btn;
-}
-
-void FreeButton(Button* button)
-{
-    free(button);
-	//printf("button freed.\n");
-}
-
-Menu* CreateMenu()
-{
-	printf("initializing menu...\n");
-    Menu* menu = (Menu*)malloc(sizeof(Menu));
-	SDL_Rect src = {0, 0, 64, 32};
-	SDL_Rect dst = {0, 223, 64, 32};
-	i32 horisontal_spacing = 3;
-	for (i32 i = 0; i < MENU_TITLE_NUM_BTN; i++)
-	{
-		SDL_Rect dst_tit = {dst.x + i * src.w + horisontal_spacing, dst.y, dst.w, dst.h};
-		SDL_Rect src_tit = {src.x + i * src.w, 0, src.w, src.h};
-		menu->title[i] = CreateButton(src_tit, dst_tit);
-	}
-
-	SDL_Rect dst_victory = {64 + 64 + horisontal_spacing, 208, 64, 32};
-	src.x = 64;
-	menu->victory[BTN_QUIT] = CreateButton(src, dst_victory);
-	src.x = 128;
-	dst_victory.x = 64 - horisontal_spacing;
-	menu->victory[BTN_PLAY] = CreateButton(src, dst_victory);
-
-
-	if (menu != NULL)
-		printf("menu initialized!\n");
-	else
-		printf("menu failed to initialize!\n");
-	return menu;
-}
-
-void FreeMenu(Menu* menu)
-{
-    for (i32 i = 0; i < MENU_TITLE_NUM_BTN; i++)
-	{
-		FreeButton(menu->title[i]);
-	}
-
-	for (i32 i = 0; i < MENU_VICTORY_NUM_BTN; i++)
-	{
-		FreeButton(menu->victory[i]);
-	}
-	free(menu);
-	printf("Menu freed.\n");
-}
 
 void LoadSurface(Assets* assets, i32 identifier, const char* path)
 {
@@ -481,6 +425,19 @@ void LoadCursor(Assets* assets, i32 identifier, const char* path)
 	}
 }
 
+void GenerateString(Assets* assets, i32 identifier, const char* string)
+{
+	if ((assets->str[identifier] != NULL) || (identifier >= ASSETBANK_STRINGS_MAX))
+	{
+		printf("LoadString error: string at specified identifier %d already exists, or identifier was out of range.\n",
+			   identifier);
+	}
+	else
+	{
+		assets->str[identifier] = strdup(string);
+	}
+}
+
 void LoadString(Assets* assets, i32 identifier, const char* path)
 {
 	if ((assets->str[identifier] != NULL) || (identifier >= ASSETBANK_STRINGS_MAX))
@@ -589,95 +546,7 @@ i2 MouseLocation(Controller* c, Viewport* viewport)
 
 
 
-E_BUTTON_STATE ButtonStateTransition(Button* btn, E_BUTTON_STATE next_state)
-{
-	E_BUTTON_STATE current_state = (btn->state & BUTTON_STATE_MASK_CURR);
-	//E_BUTTON_STATE previous_state = (btn->state & BUTTON_STATE_MASK_PREV);
-	if (current_state == next_state)
-    {
-        //printf("Next state was same as previous.\n");
-		btn->state = MAKE8FROM4(next_state, next_state);
-        return current_state;
-    } 
-    b8 transition_allowed[BUTTON_STATE_MAX*BUTTON_STATE_MAX] = 
-    { //FROM:   inact	active	hovered	pressed	held	release	||TO:
-                1,      1,      1,      1,      1,      1,    	//inactive
-                1,      1,      1,      0,      1,      1,    	//active
-                0,      1,      1,      0,      0,      1,    	//hovered
-                0,      0,      1,      1,      0,      0,    	//pressed
-                0,      0,      0,      1,      1,      0,    	//held
-                0,      0,      0,      1,      1,      0,    	//released
-    };
-    if (transition_allowed[current_state + next_state * BUTTON_STATE_MAX])
-    {
-        switch (current_state) //exit current state, cleanup
-        {
-            case BUTTON_STATE_INACTIVE:
-                break;
-            case BUTTON_STATE_ACTIVE:
-                break;
-            case BUTTON_STATE_HOVERED:
-                break;
-            case BUTTON_STATE_PRESSED:
-                break;
-            case BUTTON_STATE_HELD:
-                break;
-            case BUTTON_STATE_RELEASED:
-                break;
-        }
-        switch (next_state) //enter next state, setup
-        {
-            case BUTTON_STATE_INACTIVE:
-				btn->src.y = 0;
-                break;
-            case BUTTON_STATE_ACTIVE:
-				btn->src.y = 0;
-                break;
-            case BUTTON_STATE_HOVERED:
-				btn->src.y = btn->src.h;
-                break;
-            case BUTTON_STATE_PRESSED:
-				btn->src.y = btn->src.h * 2;
-                break;
-            case BUTTON_STATE_HELD:
-				btn->src.y = btn->src.h * 2;
-                break;
-            case BUTTON_STATE_RELEASED:
-				btn->src.y = 0;
-                break;
-        }
-        printf("BTN from %s to %s\n", ButtonStateName(current_state), ButtonStateName(next_state));
-		btn->state = MAKE8FROM4(current_state, next_state);
-        return next_state;
-    }
-    else
-    {
-        //printf("Button state change from %s \tto %s was deemed illegal!\n", ButtonStateName(current_state), ButtonStateName(next_state));
-		btn->state = MAKE8FROM4(current_state, current_state);
-        return current_state;
-    }
-}
 
-char* ButtonStateName(E_BUTTON_STATE state)
-{
-    switch (state)
-	{
-		case BUTTON_STATE_INACTIVE :
-			return "[Button Inactive]";
-    	case BUTTON_STATE_ACTIVE   :
-			return "[Button Active]";
-    	case BUTTON_STATE_HOVERED  :
-			return "[Button Hovered]";
-    	case BUTTON_STATE_PRESSED  :
-			return "[Button Pressed]";
-    	case BUTTON_STATE_HELD     :
-			return "[Button Held]";
-    	case BUTTON_STATE_RELEASED :
-			return "[Button Released]";
-		default:
-			return "[unknown button state!]";
-	}
-}
 
 void CollectInput(Controller* c)
 {
@@ -1024,6 +893,298 @@ r2 CamToPos( i2 cam, Viewport* viewport)
 
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ CAMERA ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
+
+/*vvvvvvvvvvvvvvvvvvvvvvvvvv GUI vvvvvvvvvvvvvvvvvvvvvvvvvv*/
+Menu CreateMenu(const char* config_section)
+{
+	printf("initializing menu from section %s.\n", config_section);
+    Menu menu;// = malloc(sizeof(Menu));
+
+	//setup ini design to read data from section
+	ini_t* menu_config = ini_load(GUI_DESIGN_PATH);
+	i32 raw_num_btns;
+	ini_sget(menu_config, config_section, "num_btn", "%d", &raw_num_btns);
+	r2 margins_x_raw;
+	r2 margins_y_raw;
+	i2 src_raw;
+	u32 slice_dim_raw;
+	i32	txt_offset_y_normal_raw;
+	i32	txt_offset_y_hovered_raw;
+	i32	txt_offset_y_pressed_raw;
+	char config_key[9] = "btn_00_l";
+	i32 chr_tens = 4;
+	i32 chr_ones = 5;
+	i32 chr_mark = 7;
+
+	//use data to create menu
+	menu.num_buttons = raw_num_btns;
+	menu.buttons = malloc(sizeof(Button) * raw_num_btns);
+	for (i32 i = 0; i < raw_num_btns; i++)
+	{	
+		config_key[chr_ones] = (i % 10) + '0';
+		config_key[chr_tens] = (i / 10) + '0';
+		config_key[chr_mark] = 'l';
+		printf("accessing.. %s, %s\n", config_section, config_key);
+		ini_sget(menu_config, config_section, config_key, "%f", &margins_x_raw.x);
+		config_key[chr_mark] = 'r';
+		ini_sget(menu_config, config_section, config_key, "%f", &margins_x_raw.y);
+		config_key[chr_mark] = 't';
+		ini_sget(menu_config, config_section, config_key, "%f", &margins_y_raw.x);
+		config_key[chr_mark] = 'b';
+		ini_sget(menu_config, config_section, config_key, "%f", &margins_y_raw.y);
+		config_key[chr_mark] = 'x';
+		ini_sget(menu_config, config_section, config_key, "%d", &src_raw.x);
+		config_key[chr_mark] = 'y';
+		ini_sget(menu_config, config_section, config_key, "%d", &src_raw.y);
+		config_key[chr_mark] = 'd';
+		ini_sget(menu_config, config_section, config_key, "%d", &slice_dim_raw);
+		config_key[chr_mark] = 'n';
+		ini_sget(menu_config, config_section, config_key, "%d", &txt_offset_y_normal_raw);
+		config_key[chr_mark] = 'h';
+		ini_sget(menu_config, config_section, config_key, "%d", &txt_offset_y_hovered_raw);
+		config_key[chr_mark] = 'p';
+		ini_sget(menu_config, config_section, config_key, "%d", &txt_offset_y_pressed_raw);
+		config_key[chr_mark] = 's';
+		const char* text_raw = ini_get(menu_config, config_section, config_key);
+
+		printf("values from ini file:\n text: %s\n margins_x: (%f, %f)\n margins_y: (%f, %f)\n src_loc: (%d, %d)\n slice dim: %d\n",
+		text_raw, margins_x_raw.x, margins_x_raw.y, margins_y_raw.x, margins_y_raw.y, src_raw.x, src_raw.y, slice_dim_raw);
+		
+		menu.buttons[i] = AddButton(src_raw, slice_dim_raw, margins_x_raw, margins_y_raw, text_raw, txt_offset_y_normal_raw, txt_offset_y_hovered_raw, txt_offset_y_pressed_raw);
+	}
+
+	ini_free(menu_config);
+
+	// if (menu != NULL)
+	// 	printf("menu initialized!\n");
+	// else
+	// 	printf("menu failed to initialize!\n");
+	return menu;
+}
+
+Button AddButton(i2 src_loc, u32 slice_dim, r2 margins_x, r2 margins_y, const char* text, i8 txt_offset_y_normal, i8 txt_offset_y_hovered, i8 txt_offset_y_pressed)
+{
+
+	//raw data represents data from design config file, data is loaded in the create menu function and passed as
+	// arguments here
+	//margin_x.x is left marging and .y is right margin in percent of screen real estate, y.x is top and y.y is bottom
+	// example will create a button that starts at 3/4ths of the screen from the left, and ends at 95% from the left (or 5% from the right)
+	// and starts at 5% from top and there is a gap worth 90% of screenspace below the button
+	// r2 raw_margin_x = {0.75f, 0.05f};
+	// r2 raw_margin_y = {0.05f, 0.90f};
+
+	i2 rect_loc = {margins_x.x * ZSDL_INTERNAL_WIDTH, margins_y.x * ZSDL_INTERNAL_HEIGHT};
+	i2 rect_dim = {ZSDL_INTERNAL_WIDTH - (margins_x.y * ZSDL_INTERNAL_WIDTH) - rect_loc.x, ZSDL_INTERNAL_HEIGHT - (margins_y.y * ZSDL_INTERNAL_HEIGHT) - rect_loc.y};
+
+	//SDL_Rect dst = {rect_loc.x, rect_loc.y, rect_dim.x, rect_dim.y};
+
+	Button btn;
+	btn.state = 0;
+	btn.src_loc = src_loc;
+	btn.dst_loc = rect_loc;
+	btn.dst_siz = rect_dim;
+	btn.slice_dim = slice_dim;
+	btn.txt = strdup(text);
+	btn.txt_offset_y_current = txt_offset_y_normal;
+	btn.txt_offset_y_normal = txt_offset_y_normal;
+	btn.txt_offset_y_hovered = txt_offset_y_hovered;
+	btn.txt_offset_y_pressed = txt_offset_y_pressed;
+
+	printf("\nprocessed values from button:\n src: (%d, %d)\n dst_loc: (%d, %d)\n dst_siz: (%d, %d)\n slice_dim: %d\n txt: %s\n\n",
+	btn.src_loc.x, 
+	btn.src_loc.y, 
+	btn.dst_loc.x,
+	btn.dst_loc.y,
+	btn.dst_siz.x,
+	btn.dst_siz.y,
+	btn.slice_dim,
+	btn.txt
+	);
+	return btn;
+}
+
+
+
+
+
+
+void FreeMenus(Menu* menu)
+{
+	if (menu != NULL)
+	{
+		for (i32 j = 0; j < MAX_MENUS; j++)
+		{
+			for (i32 i = 0; i < menu[j].num_buttons; i++)
+			{
+				if (menu[j].buttons[i].txt != NULL)
+					free(menu[j].buttons[i].txt);
+			}
+		}
+		free(menu);
+		menu = NULL;
+	}
+	printf("Menus freed.\n");
+}
+
+
+
+i32 TickMenu(Menu menu, i2 mouse_location, Controller* controller)
+{
+	SDL_Point mpoint = {mouse_location.x, mouse_location.y};
+	i32 button_was_pressed = -1;
+	static b8 transition_allowed[BUTTON_STATE_MAX*BUTTON_STATE_MAX] = 
+	{ //FROM:   inact	active	hovered	pressed	held	release	||TO:
+				1,      1,      1,      1,      1,      1,    	//inactive
+				1,      1,      1,      0,      1,      1,    	//active
+				0,      1,      1,      0,      0,      1,    	//hovered
+				0,      0,      1,      1,      0,      0,    	//pressed
+				0,      0,      0,      1,      1,      0,    	//held
+				0,      0,      0,      1,      1,      0,    	//released
+	};
+	for (i32 i = 0; i < menu.num_buttons; i++)
+	{
+		//u8 btn_state_old = GET4IN8(menu.buttons[i].state, BUTTON_STATE_POS_OLD);
+		u8 btn_state_now = GET4IN8(menu.buttons[i].state, BUTTON_STATE_POS_NOW);
+		u8 btn_state_new = btn_state_now;
+		//printf("button num %d's state is %d", i, btn_state_now);
+		SDL_Rect hitbox = {menu.buttons[i].dst_loc.x, menu.buttons[i].dst_loc.y, menu.buttons[i].dst_siz.x, menu.buttons[i].dst_siz.y};
+
+		if (btn_state_now) // inactive if 0
+		{
+			if (SDL_PointInRect(&mpoint, &hitbox))
+			{
+				if (ActionPressed(controller, A_MB_L))
+				{
+					btn_state_new = BUTTON_STATE_PRESSED;
+				}
+				else if (ActionHeld(controller, A_MB_L))
+				{
+					btn_state_new = BUTTON_STATE_HELD;
+				}
+				else if (ActionReleased(controller, A_MB_L))
+				{
+					btn_state_new = BUTTON_STATE_RELEASED;
+				}
+				else
+				{
+					btn_state_new = BUTTON_STATE_HOVERED;
+				}
+			}
+			else
+			{
+				btn_state_new = BUTTON_STATE_ACTIVE;
+			}
+
+			if (btn_state_now == btn_state_new)
+			{
+				//printf("Next state was same as previous.\n");
+				menu.buttons[i].state = MAKE8FROM4(btn_state_now, btn_state_new);
+			}
+			else
+			{
+				if (transition_allowed[btn_state_now + btn_state_new * BUTTON_STATE_MAX])
+				{
+					switch (btn_state_now) //exit current state, cleanup
+					{
+						case BUTTON_STATE_INACTIVE:
+							break;
+						case BUTTON_STATE_ACTIVE:
+							break;
+						case BUTTON_STATE_HOVERED:
+							break;
+						case BUTTON_STATE_PRESSED:
+							break;
+						case BUTTON_STATE_HELD:
+							break;
+						case BUTTON_STATE_RELEASED:
+							break;
+					}
+					switch (btn_state_new) //enter next state, setup
+					{
+						case BUTTON_STATE_INACTIVE:
+							break;
+						case BUTTON_STATE_ACTIVE:
+							menu.buttons[i].src_loc.x = 0;
+							menu.buttons[i].txt_offset_y_current = menu.buttons[i].txt_offset_y_normal;
+							break;
+						case BUTTON_STATE_HOVERED:
+							menu.buttons[i].src_loc.x = menu.buttons[i].slice_dim * 3;
+							menu.buttons[i].txt_offset_y_current = menu.buttons[i].txt_offset_y_hovered;
+							break;
+						case BUTTON_STATE_PRESSED:
+							menu.buttons[i].src_loc.x = menu.buttons[i].slice_dim * 6;
+							menu.buttons[i].txt_offset_y_current = menu.buttons[i].txt_offset_y_pressed;
+							button_was_pressed = i;
+							break;
+						case BUTTON_STATE_HELD:
+							menu.buttons[i].src_loc.x = menu.buttons[i].slice_dim * 6;
+							break;
+						case BUTTON_STATE_RELEASED:
+							menu.buttons[i].src_loc.x = 0;
+							break;
+					}
+					//printf("BTN from %s to %s\n", ButtonStateName(btn_state_now), ButtonStateName(btn_state_new));
+					menu.buttons[i].state = MAKE8FROM4(btn_state_now, btn_state_new);
+				}
+				else
+				{
+					//printf("Button state change from %s \tto %s was deemed illegal!\n", ButtonStateName(btn_state_now), ButtonStateName(next_state));
+					menu.buttons[i].state = MAKE8FROM4(btn_state_now, btn_state_now);
+				}
+			}
+		}
+	}
+	return button_was_pressed;
+}
+
+void DrawMenu(Menu menu, Viewport* viewport, Assets* assets)
+{
+	for (i32 i = 0; i < menu.num_buttons; i++)
+	{
+		u8 btn_state_now = GET4IN8(menu.buttons[i].state, BUTTON_STATE_POS_NOW);
+
+		if (btn_state_now) // inactive if 0
+		{
+			//draw nineslice
+			DrawNineSliced(viewport, assets->tex[T_UI_ATLAS], menu.buttons[i].src_loc, menu.buttons[i].dst_loc, menu.buttons[i].dst_siz, menu.buttons[i].slice_dim);
+			//then draw text, centered
+			//TODO: add text offset variable, because some buttons have perspective..?
+			// i2 txt_siz = {strlen(menu.buttons[i].txt)*assets->fon[FONT_ID_ZSYS]->siz.x, assets->fon[FONT_ID_ZSYS]->siz.y};
+			SDL_Rect txt_dst = {menu.buttons[i].dst_loc.x, menu.buttons[i].dst_loc.y + menu.buttons[i].txt_offset_y_current, menu.buttons[i].dst_siz.x, menu.buttons[i].dst_siz.y};
+			// {
+			// 	menu.buttons[i].dst_loc.x + menu.buttons[i].dst_siz.x * 0.5f - txt_siz.x * 0.5f,
+			// 	menu.buttons[i].dst_loc.y + menu.buttons[i].dst_siz.y * 0.5f - txt_siz.y * 0.5f,
+			// };
+			DrawTextScreenCentered(viewport, assets->fon[FONT_ID_ZSYS], COLOR_BLACK, txt_dst, menu.buttons[i].txt);
+
+		}
+	}
+}
+
+
+char* ButtonStateName(E_BUTTON_STATE state)
+{
+    switch (state)
+	{
+		case BUTTON_STATE_INACTIVE :
+			return "[Button Inactive]";
+    	case BUTTON_STATE_ACTIVE   :
+			return "[Button Active]";
+    	case BUTTON_STATE_HOVERED  :
+			return "[Button Hovered]";
+    	case BUTTON_STATE_PRESSED  :
+			return "[Button Pressed]";
+    	case BUTTON_STATE_HELD     :
+			return "[Button Held]";
+    	case BUTTON_STATE_RELEASED :
+			return "[Button Released]";
+		default:
+			return "[unknown button state!]";
+	}
+}
+
+/*^^^^^^^^^^^^^^^^^^^^^^^^^^ GUI ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
+
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv RENDER SUPPORT FUNCTIONS vvvvvvvvvvvvvvvvvvvvvvvvvv*/
 
 void SetCursor(Viewport* viewport, Assets* assets, u8 new_cursor)
@@ -1287,24 +1448,48 @@ void DrawTextWorld(Viewport* viewport, zFont* font, SDL_Color color, r2 pos, r32
     }
 }
 
-void DrawTextScreen(Viewport* viewport, zFont* font, SDL_Color color, i2 loc, const char* text)
+void DrawTextScreenCentered(Viewport* viewport, zFont* font, SDL_Color color, SDL_Rect dst, const char* text)
 {
 	i32 i = 0;
+	i32 len = strlen(text);
+	i32 w = len * font->siz.x;
+	i32 h = font->siz.y;
+	i2 loc = make_i2(dst.x + ((dst.w/2) - (w/2)), dst.y + ((dst.h/2) - (h/2)));
 	i2 screen_pos = loc;
 	SDL_Rect src = {0, 0, font->siz.x, font->siz.y};
-	SDL_Rect dst = {screen_pos.x, screen_pos.y, font->siz.x, font->siz.y};
+	SDL_Rect _dst = {loc.x, loc.y, font->siz.x, font->siz.y};
 	SDL_SetTextureColorMod(font->glyphs, color.r, color.g, color.b);
 	while(text[i] != '\0')
     {
         i32 glyph_idx = text[i] - ZFONT_ASCII_OFFSET;
 		src.x = (glyph_idx % ZFONT_DEFAULT_MAX_COL) * font->siz.x;
 		src.y = (glyph_idx / ZFONT_DEFAULT_MAX_COL) * font->siz.y;
-		dst.x = screen_pos.x + i * font->siz.x + font->spacing.x;
-		dst.y = screen_pos.y;//+ i * font->siz.y + font->spacing.y;
+		_dst.x = screen_pos.x + i * font->siz.x + font->spacing.x;
+		_dst.y = screen_pos.y;//+ i * font->siz.y + font->spacing.y;
 
-        SDL_RenderCopy(viewport->renderer, font->glyphs, &src, &dst);
+        SDL_RenderCopy(viewport->renderer, font->glyphs, &src, &_dst);
         i++;
     }
 }
 
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ FONT TEXT DRAWING ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
+
+
+
+/*vvvvvvvvvvvvvvvvvvvvvvvvvv ANALYSIS FUNCTIONS vvvvvvvvvvvvvvvvvvvvvvvvvv*/
+void DPrintMouseLoc(Controller* controller, Viewport* viewport, Assets* assets)
+{
+	char txt_mraw[50];
+    char txt_mpos[50];
+    char txt_mcam[50];
+    i2 mraw = MouseLocation(controller, viewport);
+    r2 mpos = CamToPos(mraw, viewport);
+    i2 mcam = PosToCam(mpos, 1.f, viewport);
+    sprintf(txt_mraw, "mraw: (%d, %d)", mraw.x, mraw.y);
+    sprintf(txt_mpos, "mpos: (%f, %f)", mpos.x, mpos.y);
+    sprintf(txt_mcam, "mcam: (%d, %d)", mcam.x, mcam.y);
+    DrawTextScreenCentered(viewport, assets->fon[0], COLOR_WHITE, (SDL_Rect){3, 3, 1, 1}, txt_mraw);
+    DrawTextScreenCentered(viewport, assets->fon[0], COLOR_WHITE, (SDL_Rect){3, 3 + assets->fon[0]->siz.y, 1, 1}, txt_mpos);
+    DrawTextScreenCentered(viewport, assets->fon[0], COLOR_WHITE, (SDL_Rect){3, 3+ assets->fon[0]->siz.y*2, 1, 1}, txt_mcam);
+}
+/*^^^^^^^^^^^^^^^^^^^^^^^^^^ ANAALYSIS FUNCTIONS ^^^^^^^^^^^^^^^^^^^^^^^^^^*/

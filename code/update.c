@@ -11,7 +11,8 @@ Gamestate UpdateMain
     Game* game, 
     Controller* controller, 
     Particles* particles, 
-    Assets* assets
+    Assets* assets,
+    Menu* menu
 )/*-----------------------------------------------------------*/
 {/*-----------------------------------------------------------*/
     if (ActionPressed(controller, A_QUIT))
@@ -19,7 +20,10 @@ Gamestate UpdateMain
 
     static u8 cam_active = 0;
     static u8 cross_active = 0;
-    r2 mpos = CamToPos(MouseLocation(controller, viewport), viewport);
+    i2 mloc = MouseLocation(controller, viewport);
+    r2 mpos = CamToPos(mloc, viewport);
+
+    TickMenu(menu[MENU_TITLE], mloc, controller);
 
     if (ActionPressed(controller, A_WHLU))
     {
@@ -103,7 +107,8 @@ Gamestate UpdatePlay
     Game* game, 
     Controller* controller, 
     Particles* particles, 
-    Assets* assets
+    Assets* assets,
+    Menu* menu
 )/*-----------------------------------------------------------*/
 {/*-----------------------------------------------------------*/
     if (ActionPressed(controller, A_QUIT))
@@ -124,7 +129,8 @@ Gamestate UpdateLose
     Game* game, 
     Controller* controller, 
     Particles* particles, 
-    Assets* assets
+    Assets* assets,
+    Menu* menu
 )/*-----------------------------------------------------------*/
 {/*-----------------------------------------------------------*/
     if (ActionPressed(controller, A_QUIT))

@@ -12,8 +12,7 @@ typedef struct Viewport Viewport;
 typedef struct Camera Camera;
 typedef struct Controller Controller;
 typedef struct Assets Assets;
-typedef struct Button Button;
-typedef struct Menu Menu;
+
 typedef struct Dot Dot;
 typedef struct Bubble Bubble;
 typedef struct Particles Particles;
@@ -90,17 +89,17 @@ typedef struct ZSDL_Font
 } zFont;
 
 void DrawTextWorld(Viewport* viewport, zFont* font, SDL_Color color, r2 pos, r32 depth, const char* text);
-void DrawTextScreen(Viewport* viewport, zFont* font, SDL_Color color, i2 loc, const char* text);
+void DrawTextScreenCentered(Viewport* viewport, zFont* font, SDL_Color color, SDL_Rect dst, const char* text);
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ FONT ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv ASSETBANK vvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #define ASSETBANK_TEXTURES_MAX 16
-#define ASSETBANK_SOUNDS_MAX 32
+#define ASSETBANK_SOUNDS_MAX 8
 #define ASSETBANK_MUSIC_MAX 2
 #define ASSETBANK_CURSORS_MAX 7
 #define ASSETBANK_SURFACES_MAX 6
 #define ASSETBANK_FONTS_MAX 2
-#define ASSETBANK_STRINGS_MAX 1
+#define ASSETBANK_STRINGS_MAX 5
 
 typedef struct Assets
 {
@@ -119,6 +118,7 @@ void LoadSound(Assets* assets, i32 identifier, const char* path);
 void LoadMusic(Assets* assets, i32 identifier, const char* path);
 void LoadSurface(Assets* assets, i32 identifier, const char* path);
 void LoadString(Assets* assets, i32 identifier, const char* path);
+void GenerateString(Assets* assets, i32 identifier, const char* string);
 void LoadTexture(Assets* assets, i32 identifier, SDL_Renderer* renderer, const char* path);
 void LoadCursor(Assets* assets, i32 identifier, const char* path);
 void LoadFont(Assets* assets, i32 identifier, SDL_Renderer* renderer, const char* path);
@@ -262,45 +262,7 @@ void FreeParticles(Particles* p);
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ PARTICLES ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 
-/*vvvvvvvvvvvvvvvvvvvvvvvvvv GUI vvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#define BUTTON_STATE_MASK_CURR	0x0f
-#define BUTTON_STATE_MASK_PREV	0xf0
-#define BUTTON_STATE_MAX        6
-typedef enum
-{
-    BUTTON_STATE_INACTIVE   = 0x00,
-    BUTTON_STATE_ACTIVE     = 0x01,
-    BUTTON_STATE_HOVERED    = 0x02,
-    BUTTON_STATE_PRESSED    = 0x03,
-    BUTTON_STATE_HELD       = 0x04,
-    BUTTON_STATE_RELEASED   = 0x05
-} E_BUTTON_STATE;
-typedef struct Button
-{
-    SDL_Rect src;
-    SDL_Rect dst;
-    b8       state;
-} Button;
 
-#define BTN_PLAY 0
-#define BTN_QUIT 1
-#define MENU_TITLE_NUM_BTN 2 //play, quit
-#define MENU_VICTORY_NUM_BTN 2 //retry, quit
-
-typedef struct Menu
-{
-    Button* title[MENU_TITLE_NUM_BTN];
-    Button* victory[MENU_VICTORY_NUM_BTN];
-} Menu;
-
-Button* CreateButton(SDL_Rect source, SDL_Rect destination);
-void FreeButton(Button* button);
-Menu* CreateMenu();
-void FreeMenu(Menu* menu);
-
-E_BUTTON_STATE ButtonStateTransition(Button* btn, E_BUTTON_STATE next_state);
-char* ButtonStateName(E_BUTTON_STATE state);
-/*^^^^^^^^^^^^^^^^^^^^^^^^^^ GUI ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv CURSOR vvvvvvvvvvvvvvvvvvvvvvvvvv*/
@@ -317,7 +279,79 @@ void SetCursor(Viewport* viewport, Assets* assets, u8 new_cursor);
 void RefreshCursors(Viewport* viewport, Assets* assets);
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ CURSOR ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
+/*vvvvvvvvvvvvvvvvvvvvvvvvvv GUI vvvvvvvvvvvvvvvvvvvvvvvvvv*/
+#define BUTTON_STATE_MASK_CURR	0x0f
+#define BUTTON_STATE_MASK_PREV	0xf0
+#define BUTTON_STATE_POS_NOW	0
+#define BUTTON_STATE_POS_OLD	1
+#define BUTTON_STATE_MAX        6
+#define BUTTON_ARROW_SIZE 16
+#define BUTTON_NINSLICE_DIM 16
+typedef enum
+{
+    BUTTON_STATE_INACTIVE   = 0x00,
+    BUTTON_STATE_ACTIVE     = 0x01,
+    BUTTON_STATE_HOVERED    = 0x02,
+    BUTTON_STATE_PRESSED    = 0x03,
+    BUTTON_STATE_HELD       = 0x04,
+    BUTTON_STATE_RELEASED   = 0x05
+} E_BUTTON_STATE;
+typedef struct Button
+{
+	i2			src_loc;
+    i2		    dst_loc;
+    i2		    dst_siz;
+    char*       txt;
+	u32 		slice_dim;
+	i32			txt_offset_y_current;
+	i32			txt_offset_y_normal;
+	i32			txt_offset_y_hovered;
+	i32			txt_offset_y_pressed;
+    u8          state;
+} Button;
 
+typedef enum
+{
+	BTN_MODE,
+	BTN_RANDOMIZE,
+	BTN_HEAD_L,
+	BTN_EYES_L,
+	BTN_BODY_L,
+	BTN_LEGS_L,
+	BTN_HEAD_R,
+	BTN_EYES_R,
+	BTN_BODY_R,
+	BTN_LEGS_R
+} E_Button_Name;
+#define MAX_BUTTONS 10
+
+typedef enum
+{
+	MENU_TITLE,
+	MENU_OPTIONS_VIDEO,
+	MENU_OPTIONS_AUDIO,
+	MENU_OPTIONS_INPUT,
+	MENU_QUIT_PROMPT,
+} E_Menu_Name;
+
+#define MAX_MENUS 1
+typedef struct Menu
+{
+	Button* buttons;
+    u32 num_buttons;
+} Menu;
+
+
+
+
+Menu CreateMenu(const char* config_section);
+Button AddButton(i2 src_loc, u32 slice_dim, r2 margins_x, r2 margins_y, const char* text, i8 txt_offset_y_normal, i8 txt_offset_y_hovered, i8 txt_offset_y_pressed);
+i32 TickMenu(Menu menu, i2 mouse_location, Controller* controller);
+void DrawMenu(Menu menu, Viewport* viewport, Assets* assets);
+void FreeMenus(Menu* menu);
+
+char* ButtonStateName(E_BUTTON_STATE state);
+/*^^^^^^^^^^^^^^^^^^^^^^^^^^ GUI ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv RENDER SUPPORT FUNCTIONS vvvvvvvvvvvvvvvvvvvvvvvvvv*/
@@ -342,5 +376,9 @@ r2 CamToPos(i2 cam, Viewport* viewport);
 #define COLOR_BLACK COLOR(0x00, 0x00, 0x00, 0xff)
 #define COLOR_WHITE COLOR(0xff, 0xff, 0xff, 0xff)
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ RENDER SUPPORT FUNCTIONS ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
+
+/*vvvvvvvvvvvvvvvvvvvvvvvvvv ANALYSIS FUNCTIONS vvvvvvvvvvvvvvvvvvvvvvvvvv*/
+void DPrintMouseLoc(Controller* controller, Viewport* viewport, Assets* assets);
+/*^^^^^^^^^^^^^^^^^^^^^^^^^^ ANAALYSIS FUNCTIONS ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 #endif // ZSDL_H

@@ -19,6 +19,7 @@ typedef struct
 	Controller* controller;
 	Assets* assets;
 	Particles* particles;
+	Menu* menus;
 	Gamestate gamestate_old;
 	Gamestate gamestate_now;
 	Gamestate gamestate_new;
@@ -88,21 +89,24 @@ printf("Game exiting state \t%s...\n", GetGamestateName(engine->gamestate_now));
 	        		switch (engine->gamestate_now) 
 	        		{
 	            		case GAMESTATE_INIT:
-	            		    break;
+						break;
 	            		case GAMESTATE_MAIN:
-	            		    break;
+							for (i32 i = 0; i < engine->menus[MENU_TITLE].num_buttons; i++)
+									for (i32 j = 0; j < engine->menus[MENU_TITLE].num_buttons; j++)
+										engine->menus[MENU_TITLE].buttons[j].state = BUTTON_STATE_INACTIVE;
+						break;
 	            		case GAMESTATE_PLAY:
-	            		    break;
+						break;
 	            		case GAMESTATE_EVNT:
-	            		    break;
+						break;
 	            		case GAMESTATE_LOSE:
-	            		    break;
+						break;
 	            		case GAMESTATE_GOAL:
-	            		    break;
+						break;
 	            		case GAMESTATE_EDIT:
-	            		    break;
+						break;
 	            		case GAMESTATE_EXIT:
-	            		    break;
+						break;
 	        		}
 					engine->gamestate_old = engine->gamestate_now;
 
@@ -114,21 +118,24 @@ printf("Game entering state \t%s...\n", GetGamestateName(engine->gamestate_new))
 	        		{
 	            		case GAMESTATE_INIT:
 							engine->viewport->camera->zoom = ZSDL_CAMERA_MIN_ZOOM;
-	            		    break;
+						break;
 	            		case GAMESTATE_MAIN:
-	            		    break;
+							for (i32 i = 0; i < engine->menus[MENU_TITLE].num_buttons; i++)
+								for (i32 j = 0; j < engine->menus[MENU_TITLE].num_buttons; j++)
+									engine->menus[MENU_TITLE].buttons[j].state = BUTTON_STATE_ACTIVE;
+						break;
 	            		case GAMESTATE_PLAY:
-	            		    break;
+						break;
 	            		case GAMESTATE_EVNT:
-	            		    break;
+						break;
 	            		case GAMESTATE_LOSE:
-	            		    break;
+						break;
 	            		case GAMESTATE_GOAL:
-	            		    break;
+						break;
 	            		case GAMESTATE_EDIT:
-	            		    break;
+						break;
 	            		case GAMESTATE_EXIT:
-	            		    break;
+						break;
 	        		}
 #if DEBUGPRNT
 printf("Gamestate change complete.\n");
@@ -153,15 +160,15 @@ printf("Gamestate change from %s \tto %s was deemed illegal!\n", GetGamestateNam
 					engine->gamestate_new = GAMESTATE_MAIN;
 	                break;
 	            case GAMESTATE_MAIN:
-					engine->gamestate_new = UpdateMain(t, DT_SEC, engine->t_0_gamestate_change, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets);
+					engine->gamestate_new = UpdateMain(t, DT_SEC, engine->t_0_gamestate_change, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus);
 	                break;
 	            case GAMESTATE_PLAY:
-					engine->gamestate_new = UpdatePlay(t, DT_SEC, engine->t_0_gamestate_change, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets);
+					engine->gamestate_new = UpdatePlay(t, DT_SEC, engine->t_0_gamestate_change, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus);
 	                break;
 	            case GAMESTATE_EVNT:
 	                break;
 	            case GAMESTATE_LOSE:
-					engine->gamestate_new = UpdateLose(t, DT_SEC, engine->t_0_gamestate_change, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets);
+					engine->gamestate_new = UpdateLose(t, DT_SEC, engine->t_0_gamestate_change, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus);
 	                break;
 	            case GAMESTATE_GOAL:
 #if DEBUGPRNT
@@ -194,15 +201,15 @@ printf("Gamestate entered state it shouldn't be in: %s \tto %s !\n", GetGamestat
 			case GAMESTATE_INIT:
 			break;
 			case GAMESTATE_MAIN:
-				RenderMain(t_r, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets);
+				RenderMain(t_r, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus);
 			break;
 			case GAMESTATE_PLAY:
-				RenderPlay(t_r, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets);
+				RenderPlay(t_r, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus);
 			break;
 			case GAMESTATE_EVNT:
 			break;
 			case GAMESTATE_LOSE:
-				RenderLose(t_r, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets);
+				RenderLose(t_r, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus);
 			break;
 			case GAMESTATE_GOAL:
 			break;
@@ -223,13 +230,15 @@ int main(int argc, char* argv[])
 {
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv INIT vvvvvvvvvvvvvvvvvvvvvvvvvv*/
 	SetupSDL();
-	Viewport* viewport = CreateViewport("zengine");
+	Viewport* viewport = CreateViewport("ZENGINE");
 	Game* game = CreateGame();
 	Controller* controller = CreateController();
 	Assets* assets = CreateAssets(viewport);
-	//Menu* menu = CreateMenu();
 	viewport->camera = CreateCamera(ZERO_R2);
 	Particles* particles = InitParticles();
+	Menu* menus = malloc(sizeof(Menu) * MAX_MENUS);
+	menus[MENU_TITLE] = CreateMenu("main");
+
 	Engine* engine = (Engine*)malloc(sizeof(Engine));
 	engine->viewport = viewport;
 	engine->game = game;
@@ -238,6 +247,7 @@ int main(int argc, char* argv[])
 	engine->particles = particles;
 	engine->gamestate_now = GAMESTATE_INIT;
 	engine->gamestate_new = GAMESTATE_INIT;
+	engine->menus = menus;
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ INIT ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv LOAD ASSETS vvvvvvvvvvvvvvvvvvvvvvvvvv*/
@@ -279,7 +289,7 @@ printf("\n~~~Exiting game!~~~\n");
 #endif		
 	// free all things
 	FreeParticles(particles);
-//	FreeMenu(menu);
+	FreeMenus(menus);
 	FreeController(controller);
 	FreeAssets(assets);
 	FreeViewport(viewport);

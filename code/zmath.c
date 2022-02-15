@@ -848,6 +848,10 @@ r32 Wrap(r32 a)
 	//return remainder + -1.f;
 }
 
+
+/*
+transform real value from range [-1.f, 1.f] to [0.f, 1.f]
+*/
 r32 BiasR32(r32 a)
 {
 	return ((a + 1.f) * 0.5f);

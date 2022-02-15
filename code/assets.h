@@ -10,9 +10,7 @@
 #define T_UI_ATLAS 1
 #define T_PLAYER_ATLAS 2
 //texture paths
-#define T_UI_ATLAS_PATH "./assets/texture/zsys_nineslice.png"
-//texture constants
-#define ZSYS_NINESLICE_DIMENSIONS 8
+#define T_UI_ATLAS_PATH "./assets/texture/gui.png"
 
 //cursors
 #define CUR_POINT 0
@@ -41,5 +39,7 @@ typedef enum
 #define SFX_PATH_SELECT "./assets/sound/select.wav"
 #define SFX_PATH_TAP "./assets/sound/tap.wav"
 
+
+#define GUI_DESIGN_PATH "./assets/design/gui.ini"
 
 #endif //ASSETS_H
