@@ -10,6 +10,8 @@ char* GetGamestateName(Gamestate state)
 			return "[Gamestate Init]";
 		case GAMESTATE_MAIN:
 			return "[Gamestate Main]";
+		case GAMESTATE_OPTS:
+			return "[Gamestate Options]";
 		case GAMESTATE_PLAY:
 			return "[Gamestate Play]";
 		case GAMESTATE_EVNT:

@@ -15,15 +15,30 @@ Gamestate UpdateMain
     Menu* menu
 )/*-----------------------------------------------------------*/
 {/*-----------------------------------------------------------*/
-    if (ActionPressed(controller, A_QUIT))
-        return GAMESTATE_EXIT;
+
 
     static u8 cam_active = 0;
     static u8 cross_active = 0;
     i2 mloc = MouseLocation(controller, viewport);
     r2 mpos = CamToPos(mloc, viewport);
 
-    TickMenu(menu[MENU_TITLE], mloc, controller);
+    i32 menu_action = TickMenu(menu[MENU_TITLE], mloc, controller);
+
+    if (menu_action >= 0)
+    {
+        switch (menu_action)
+        {
+            case BTN_PLAY:
+            break;
+	        case BTN_OPTS:
+                return GAMESTATE_OPTS;
+            break;
+	        case BTN_QUIT:
+                return GAMESTATE_EXIT;
+            break;
+        }
+    }
+
 
     if (ActionPressed(controller, A_WHLU))
     {
@@ -95,6 +110,98 @@ Gamestate UpdateMain
 }
 
 
+/*-----------------------------------------------------------*/
+/*                        OPTIONS                            */
+/*-----------------------------------------------------------*/
+Gamestate UpdateOpts
+(
+    u32 t, 
+    r32 dt, 
+    u32 t0, 
+    Viewport* viewport, 
+    Game* game, 
+    Controller* controller, 
+    Particles* particles, 
+    Assets* assets, 
+    Menu* menu
+)/*-----------------------------------------------------------*/
+{/*-----------------------------------------------------------*/
+    static u32 submenu_active = BTN_OPTS_VIDEO;
+    i2 mloc = MouseLocation(controller, viewport);
+    r2 mpos = CamToPos(mloc, viewport);
+
+    i32 menu_action = TickMenu(menu[MENU_OPTIONS], mloc, controller);
+
+    if (menu_action >= 0)
+    {
+        ToggleMenu(&menu[MENU_OPTIONS_AUDIO], ZDISABLED);
+        ToggleMenu(&menu[MENU_OPTIONS_VIDEO], ZDISABLED);
+        ToggleMenu(&menu[MENU_OPTIONS_INPUT], ZDISABLED);
+        switch (menu_action)
+        {
+            case BTN_OPTS_VIDEO:
+                submenu_active = BTN_OPTS_VIDEO;
+                ToggleMenu(&menu[MENU_OPTIONS_VIDEO], ZENABLED);
+            break;
+	        case BTN_OPTS_AUDIO:
+                submenu_active = BTN_OPTS_AUDIO;
+                ToggleMenu(&menu[MENU_OPTIONS_AUDIO], ZENABLED);
+            break;
+	        case BTN_OPTS_INPUT:
+                submenu_active = BTN_OPTS_INPUT;
+                ToggleMenu(&menu[MENU_OPTIONS_INPUT], ZENABLED);
+            break;
+	        case BTN_OPTS_RETRN:
+                return GAMESTATE_MAIN;
+            break;            
+        }
+    }
+
+    i32 submenu_action;
+    switch (submenu_active)
+    {
+        case BTN_OPTS_VIDEO:
+        {
+            submenu_action = TickMenu(menu[MENU_OPTIONS_VIDEO], mloc, controller);
+            switch (submenu_action)
+            {
+                case BTN_OPTS_VIDEO_FSCREEN:
+                    ToggleFullscreen(viewport);
+                    ComputePixelScale(viewport);
+                    CalculateScreen(viewport);
+                    RefreshCursors(viewport, assets);
+                break;
+            }
+
+        }
+        break;
+        case BTN_OPTS_AUDIO:
+        {
+            submenu_action = TickMenu(menu[MENU_OPTIONS_AUDIO], mloc, controller);
+            switch (submenu_action)
+            {
+                case BTN_OPTS_AUDIO_MAIN_VOLUME:
+                break;
+            }
+        break;            
+        }
+        case BTN_OPTS_INPUT:
+        {
+            submenu_action = TickMenu(menu[MENU_OPTIONS_INPUT], mloc, controller);
+            switch (submenu_action)
+            {
+                case BTN_OPTS_INPUT_REBIND:
+                break;            
+            }
+        break;
+        }
+    }
+
+    
+    return GAMESTATE_OPTS;
+}
+
+
 
 /*-----------------------------------------------------------*/
 /*-----------------------------------------------------------*/
@@ -111,8 +218,7 @@ Gamestate UpdatePlay
     Menu* menu
 )/*-----------------------------------------------------------*/
 {/*-----------------------------------------------------------*/
-    if (ActionPressed(controller, A_QUIT))
-        return GAMESTATE_EXIT;
+
 
 
     return GAMESTATE_PLAY;
@@ -133,8 +239,7 @@ Gamestate UpdateLose
     Menu* menu
 )/*-----------------------------------------------------------*/
 {/*-----------------------------------------------------------*/
-    if (ActionPressed(controller, A_QUIT))
-        return GAMESTATE_EXIT;
+
 
     return GAMESTATE_LOSE;
 }

@@ -49,6 +49,7 @@ void mainloop(void *arg)
 		{
 			engine->gamestate_old = engine->gamestate_now;
 			CollectInput(engine->controller);
+			
 
 			if (ActionPressed(engine->controller, A_RSIZ))
 			{
@@ -68,15 +69,16 @@ void mainloop(void *arg)
 		    if (engine->gamestate_now != engine->gamestate_new)
     		{
    				static b8 transition_allowed[NUMBER_OF_GAMESTATES*NUMBER_OF_GAMESTATES] = 
-    			{ //FROM	init    main    play	event,  lose	vict	edit	exit	  TO
-                			1,      0,      0,  	0,      0,      0,		0,		0,		//init
-                			1,      1,      1,  	0,      1,      1,      1,		0,		//main
-                			0,      1,      1,  	1,      1,      1,      1,		0,		//play
-                			0,      1,      1,  	1,      1,      1,      0,		0,		//event
-                			0,      0,      1,  	1,      1,      0,      0,		0,		//lose
-                			0,      0,      1,  	1,      0,      1,      0,		0,		//vict
-                			0,      1,      1,  	0,      0,      0,      1,		0,		//edit
-                			0,      1,      1,  	1,      1,      1,      1,		1		//exit
+    			{ //FROM	init    main    opts	play	event,  lose	vict	edit	exit	  TO
+                			1,      0,      0,		0,  	0,      0,      0,		0,		0,		//init
+                			1,      1,      1,		1,  	0,      1,      1,      1,		0,		//main
+                			0,      1,      1,		0,  	0,      0,      0,      0,		0,		//opts
+                			0,      1,      0,		1,  	1,      1,      1,      1,		0,		//play
+                			0,      1,      0,		1,  	1,      1,      1,      0,		0,		//event
+                			0,      0,      0,		1,  	1,      1,      0,      0,		0,		//lose
+                			0,      0,      0,		1,  	1,      0,      1,      0,		0,		//vict
+                			0,      1,      0,		1,  	0,      0,      0,      1,		0,		//edit
+                			0,      1,      1,		1,  	1,      1,      1,      1,		1		//exit
     			};
 
     			if (transition_allowed[engine->gamestate_now + engine->gamestate_new * NUMBER_OF_GAMESTATES])
@@ -91,9 +93,10 @@ printf("Game exiting state \t%s...\n", GetGamestateName(engine->gamestate_now));
 	            		case GAMESTATE_INIT:
 						break;
 	            		case GAMESTATE_MAIN:
-							for (i32 i = 0; i < engine->menus[MENU_TITLE].num_buttons; i++)
-									for (i32 j = 0; j < engine->menus[MENU_TITLE].num_buttons; j++)
-										engine->menus[MENU_TITLE].buttons[j].state = BUTTON_STATE_INACTIVE;
+							ToggleMenu(&engine->menus[MENU_TITLE], ZDISABLED);
+						break;
+	            		case GAMESTATE_OPTS:
+							ToggleMenu(&engine->menus[MENU_OPTIONS], ZDISABLED);
 						break;
 	            		case GAMESTATE_PLAY:
 						break;
@@ -120,10 +123,11 @@ printf("Game entering state \t%s...\n", GetGamestateName(engine->gamestate_new))
 							engine->viewport->camera->zoom = ZSDL_CAMERA_MIN_ZOOM;
 						break;
 	            		case GAMESTATE_MAIN:
-							for (i32 i = 0; i < engine->menus[MENU_TITLE].num_buttons; i++)
-								for (i32 j = 0; j < engine->menus[MENU_TITLE].num_buttons; j++)
-									engine->menus[MENU_TITLE].buttons[j].state = BUTTON_STATE_ACTIVE;
+							ToggleMenu(&engine->menus[MENU_TITLE], ZENABLED);
 						break;
+	            		case GAMESTATE_OPTS:
+							ToggleMenu(&engine->menus[MENU_OPTIONS], ZENABLED);
+						break;						
 	            		case GAMESTATE_PLAY:
 						break;
 	            		case GAMESTATE_EVNT:
@@ -162,6 +166,9 @@ printf("Gamestate change from %s \tto %s was deemed illegal!\n", GetGamestateNam
 	            case GAMESTATE_MAIN:
 					engine->gamestate_new = UpdateMain(t, DT_SEC, engine->t_0_gamestate_change, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus);
 	                break;
+				case GAMESTATE_OPTS:
+					engine->gamestate_new = UpdateOpts(t, DT_SEC, engine->t_0_gamestate_change, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus);
+				break;					
 	            case GAMESTATE_PLAY:
 					engine->gamestate_new = UpdatePlay(t, DT_SEC, engine->t_0_gamestate_change, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus);
 	                break;
@@ -190,6 +197,9 @@ printf("Gamestate entered state it shouldn't be in: %s \tto %s !\n", GetGamestat
 			// advance time
 			t++;
 			time_accumulator -= DT_MS;
+
+			if (ActionPressed(engine->controller, A_QUIT))
+        		engine->gamestate_new = GAMESTATE_EXIT;
 		} //logic update end
 		
 /* RENDER UPDATE */
@@ -203,6 +213,9 @@ printf("Gamestate entered state it shouldn't be in: %s \tto %s !\n", GetGamestat
 			case GAMESTATE_MAIN:
 				RenderMain(t_r, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus);
 			break;
+			case GAMESTATE_OPTS:
+				RenderOpts(t_r, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus);
+			break;			
 			case GAMESTATE_PLAY:
 				RenderPlay(t_r, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus);
 			break;
@@ -238,6 +251,10 @@ int main(int argc, char* argv[])
 	Particles* particles = InitParticles();
 	Menu* menus = malloc(sizeof(Menu) * MAX_MENUS);
 	menus[MENU_TITLE] = CreateMenu("main");
+	menus[MENU_OPTIONS] = CreateMenu("options");
+	menus[MENU_OPTIONS_VIDEO] = CreateMenu("options_video");
+	menus[MENU_OPTIONS_AUDIO] = CreateMenu("options_audio");
+	menus[MENU_OPTIONS_INPUT] = CreateMenu("options_input");
 
 	Engine* engine = (Engine*)malloc(sizeof(Engine));
 	engine->viewport = viewport;

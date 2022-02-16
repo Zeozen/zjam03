@@ -312,33 +312,36 @@ typedef struct Button
 
 typedef enum
 {
-	BTN_MODE,
-	BTN_RANDOMIZE,
-	BTN_HEAD_L,
-	BTN_EYES_L,
-	BTN_BODY_L,
-	BTN_LEGS_L,
-	BTN_HEAD_R,
-	BTN_EYES_R,
-	BTN_BODY_R,
-	BTN_LEGS_R
+	BTN_PLAY = 0,
+	BTN_OPTS,
+	BTN_QUIT,
+	BTN_OPTS_VIDEO = 0,
+	BTN_OPTS_AUDIO,
+	BTN_OPTS_INPUT,
+	BTN_OPTS_RETRN,
+	BTN_OPTS_VIDEO_FSCREEN = 0,
+	BTN_OPTS_AUDIO_MAIN_VOLUME = 0,
+	BTN_OPTS_INPUT_REBIND = 0,
 } E_Button_Name;
 #define MAX_BUTTONS 10
 
 typedef enum
 {
 	MENU_TITLE,
+	MENU_OPTIONS,
 	MENU_OPTIONS_VIDEO,
 	MENU_OPTIONS_AUDIO,
 	MENU_OPTIONS_INPUT,
 	MENU_QUIT_PROMPT,
 } E_Menu_Name;
 
-#define MAX_MENUS 1
+#define MAX_MENUS 5
 typedef struct Menu
 {
 	Button* buttons;
     u32 num_buttons;
+	//TODO: the only other "widget" we need is a general, placeable textbox for headers and explanations. add this
+	//TODO: a textbox type widget can also be used for tooltips if implemented correctly
 } Menu;
 
 
@@ -348,7 +351,8 @@ Menu CreateMenu(const char* config_section);
 Button AddButton(i2 src_loc, u32 slice_dim, r2 margins_x, r2 margins_y, const char* text, i8 txt_offset_y_normal, i8 txt_offset_y_hovered, i8 txt_offset_y_pressed);
 i32 TickMenu(Menu menu, i2 mouse_location, Controller* controller);
 void DrawMenu(Menu menu, Viewport* viewport, Assets* assets);
-void FreeMenus(Menu* menu);
+void ToggleMenu(Menu* menu, b8 enable);
+void FreeMenus(Menu* menus);
 
 char* ButtonStateName(E_BUTTON_STATE state);
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ GUI ^^^^^^^^^^^^^^^^^^^^^^^^^^*/

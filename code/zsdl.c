@@ -924,7 +924,7 @@ Menu CreateMenu(const char* config_section)
 		config_key[chr_ones] = (i % 10) + '0';
 		config_key[chr_tens] = (i / 10) + '0';
 		config_key[chr_mark] = 'l';
-		printf("accessing.. %s, %s\n", config_section, config_key);
+		//printf("accessing.. %s, %s\n", config_section, config_key);
 		ini_sget(menu_config, config_section, config_key, "%f", &margins_x_raw.x);
 		config_key[chr_mark] = 'r';
 		ini_sget(menu_config, config_section, config_key, "%f", &margins_x_raw.y);
@@ -967,14 +967,11 @@ Button AddButton(i2 src_loc, u32 slice_dim, r2 margins_x, r2 margins_y, const ch
 
 	//raw data represents data from design config file, data is loaded in the create menu function and passed as
 	// arguments here
-	//margin_x.x is left marging and .y is right margin in percent of screen real estate, y.x is top and y.y is bottom
-	// example will create a button that starts at 3/4ths of the screen from the left, and ends at 95% from the left (or 5% from the right)
-	// and starts at 5% from top and there is a gap worth 90% of screenspace below the button
-	// r2 raw_margin_x = {0.75f, 0.05f};
-	// r2 raw_margin_y = {0.05f, 0.90f};
+	//margin_x.x is left edge of button and .y is right edge of button in percent of screen real estate, y.x is top and y.y is bottom
 
 	i2 rect_loc = {margins_x.x * ZSDL_INTERNAL_WIDTH, margins_y.x * ZSDL_INTERNAL_HEIGHT};
-	i2 rect_dim = {ZSDL_INTERNAL_WIDTH - (margins_x.y * ZSDL_INTERNAL_WIDTH) - rect_loc.x, ZSDL_INTERNAL_HEIGHT - (margins_y.y * ZSDL_INTERNAL_HEIGHT) - rect_loc.y};
+	//i2 rect_dim = {ZSDL_INTERNAL_WIDTH - (margins_x.y * ZSDL_INTERNAL_WIDTH) - rect_loc.x, ZSDL_INTERNAL_HEIGHT - (margins_y.y * ZSDL_INTERNAL_HEIGHT) - rect_loc.y};
+	i2 rect_dim = {(margins_x.y - margins_x.x) * ZSDL_INTERNAL_WIDTH, (margins_y.y  - margins_y.x) * ZSDL_INTERNAL_HEIGHT};
 
 	//SDL_Rect dst = {rect_loc.x, rect_loc.y, rect_dim.x, rect_dim.y};
 
@@ -1008,23 +1005,6 @@ Button AddButton(i2 src_loc, u32 slice_dim, r2 margins_x, r2 margins_y, const ch
 
 
 
-void FreeMenus(Menu* menu)
-{
-	if (menu != NULL)
-	{
-		for (i32 j = 0; j < MAX_MENUS; j++)
-		{
-			for (i32 i = 0; i < menu[j].num_buttons; i++)
-			{
-				if (menu[j].buttons[i].txt != NULL)
-					free(menu[j].buttons[i].txt);
-			}
-		}
-		free(menu);
-		menu = NULL;
-	}
-	printf("Menus freed.\n");
-}
 
 
 
@@ -1147,8 +1127,6 @@ void DrawMenu(Menu menu, Viewport* viewport, Assets* assets)
 		{
 			//draw nineslice
 			DrawNineSliced(viewport, assets->tex[T_UI_ATLAS], menu.buttons[i].src_loc, menu.buttons[i].dst_loc, menu.buttons[i].dst_siz, menu.buttons[i].slice_dim);
-			//then draw text, centered
-			//TODO: add text offset variable, because some buttons have perspective..?
 			// i2 txt_siz = {strlen(menu.buttons[i].txt)*assets->fon[FONT_ID_ZSYS]->siz.x, assets->fon[FONT_ID_ZSYS]->siz.y};
 			SDL_Rect txt_dst = {menu.buttons[i].dst_loc.x, menu.buttons[i].dst_loc.y + menu.buttons[i].txt_offset_y_current, menu.buttons[i].dst_siz.x, menu.buttons[i].dst_siz.y};
 			// {
@@ -1160,6 +1138,31 @@ void DrawMenu(Menu menu, Viewport* viewport, Assets* assets)
 		}
 	}
 }
+
+void ToggleMenu(Menu* menu, b8 enable)
+{
+	for (i32 j = 0; j < menu->num_buttons; j++)
+		menu->buttons[j].state = enable;
+}
+
+void FreeMenus(Menu* menus)
+{
+	if (menus != NULL)
+	{
+		for (i32 j = 0; j < MAX_MENUS; j++)
+		{
+			for (i32 i = 0; i < menus[j].num_buttons; i++)
+			{
+				if (menus[j].buttons[i].txt != NULL)
+					free(menus[j].buttons[i].txt);
+			}
+		}
+		free(menus);
+		menus = NULL;
+	}
+	printf("Menus freed.\n");
+}
+
 
 
 char* ButtonStateName(E_BUTTON_STATE state)

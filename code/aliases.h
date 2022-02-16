@@ -13,3 +13,8 @@ typedef double r64;
 typedef uint8_t b8;
 typedef uint16_t b16;
 typedef uint32_t b32;
+
+#define ZENABLED 1
+#define ZDISABLED 0
+#define ZTRUE 1
+#define ZFALSE 0

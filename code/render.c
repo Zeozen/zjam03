@@ -44,6 +44,30 @@ void RenderMain
  
 }
 
+
+/*-----------------------------------------------------------*/
+/*-----------------------------------------------------------*/
+void RenderOpts
+(
+    u32 t_r,
+    Viewport* viewport, 
+    Game* game, 
+    Controller* controller, 
+    Particles* particles,
+    Assets* assets,
+    Menu* menu
+)/*-----------------------------------------------------------*/
+{/*-----------------------------------------------------------*/
+
+    SDL_SetRenderTarget(viewport->renderer, viewport->render_layer[ZSDL_RENDERLAYER_UI]);
+    DrawMenu(menu[MENU_OPTIONS], viewport, assets);
+    DrawMenu(menu[MENU_OPTIONS_VIDEO], viewport, assets);
+    DrawMenu(menu[MENU_OPTIONS_AUDIO], viewport, assets);
+    DrawMenu(menu[MENU_OPTIONS_INPUT], viewport, assets);
+}
+
+
+
 /*-----------------------------------------------------------*/
 /*-----------------------------------------------------------*/
 void RenderPlay
