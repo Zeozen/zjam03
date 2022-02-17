@@ -49,10 +49,6 @@ void FreeGame(Game* game)
 
 void RestartGame(Game* game)
 {
-	for (i32 i = 0; i < GAMEDATA_MAX; i++)
-	{
-		game->data[i] = 0;
-	}
 	memset(game, 0, sizeof(Game));
 	SEED_ZRNG();
 }

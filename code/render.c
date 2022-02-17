@@ -12,7 +12,8 @@ void RenderMain
     Controller* controller, 
     Particles* particles,
     Assets* assets,
-    Menu* menu
+    Menu* menu,
+    zGrid* world
 )/*-----------------------------------------------------------*/
 {/*-----------------------------------------------------------*/
 
@@ -55,7 +56,8 @@ void RenderOpts
     Controller* controller, 
     Particles* particles,
     Assets* assets,
-    Menu* menu
+    Menu* menu,
+    zGrid* world
 )/*-----------------------------------------------------------*/
 {/*-----------------------------------------------------------*/
 
@@ -78,25 +80,37 @@ void RenderPlay
     Controller* controller, 
     Particles* particles,
     Assets* assets,
-    Menu* menu
+    Menu* menu,
+    zGrid* world
 )/*-----------------------------------------------------------*/
 {/*-----------------------------------------------------------*/
+    i2 mloc = MouseLocation(controller, viewport);
+    r2 mpos = CamToPos(mloc, viewport);
 
+    SDL_SetRenderTarget(viewport->renderer, viewport->render_layer[ZSDL_RENDERLAYER_ENTITIES]);
+//draw player
+    i2 p_loc = PosToCam(game->player.pos, 1.f, viewport);
+    SDL_Rect p_rect = {p_loc.x - PLAYER_HALFWIDTH, p_loc.y - PLAYER_HALFHEIGHT, PLAYER_WIDTH, PLAYER_HEIGHT};
+    SDL_SetRenderDrawColor(viewport->renderer, 0xff, 0xff, 0xff, 0xff);
+    SDL_RenderFillRect(viewport->renderer, &p_rect);
 
-    #ifdef DBUG_MOUSE
-    char txt_mraw[50];
-    char txt_mpos[50];
-    char txt_mcam[50];
-    i2 mraw = MouseLocation(controller, viewport);
-    r2 mpos = CamToPos(mraw, viewport);
-    i2 mcam = PosToCam(mpos, viewport);
-    sprintf(txt_mraw, "mraw: (%d, %d)", mraw.x, mraw.y);
-    sprintf(txt_mpos, "mpos: (%f, %f)", mpos.x, mpos.y);
-    sprintf(txt_mcam, "mcam: (%d, %d)", mcam.x, mcam.y);
-    DrawTextScreen(viewport, assets->fon[0], COLOR_WHITE, make_i2(3, 3), txt_mraw);
-    DrawTextScreen(viewport, assets->fon[0], COLOR_WHITE, make_i2(3, 3 + assets->fon[0]->siz.y), txt_mpos);
-    DrawTextScreen(viewport, assets->fon[0], COLOR_WHITE, make_i2(3, 3+ assets->fon[0]->siz.y*2), txt_mcam);
-    #endif
+//draw house
+    i2 origin_loc = PosToCam(ZERO_R2, 1.f, viewport);
+    SDL_Rect house_rect = {origin_loc.x - HOME_RADIUS, origin_loc.y - HOME_RADIUS, HOME_RADIUS*2, HOME_RADIUS};
+    SDL_SetRenderDrawColor(viewport->renderer, 0x55, 0x55, 0x55, 0xff);
+    SDL_RenderDrawRect(viewport->renderer, &house_rect);
+
+    DrawGrid(world, viewport, assets);
+
+    SDL_SetRenderTarget(viewport->renderer, viewport->render_layer[ZSDL_RENDERLAYER_UI]);
+    i32 midx = PosToIdx(mpos, world);
+        u8 sd_row = GET4IN8(world->cell[PosToIdx(mpos, world)].sprite_mg, BITPOS_SPRITE_ROW);
+    u8 sd_col = GET4IN8(world->cell[PosToIdx(mpos, world)].sprite_mg, BITPOS_SPRITE_COL);
+	i2 txt_loc = ZERO_I2;
+	char txt[50];
+	sprintf(txt, "mouse idx %d, spr row: %d col: %d", midx, sd_row, sd_col);
+	DrawTextScreen(viewport, assets->fon[FONT_ID_ZSYS], COLOR_WHITE, txt_loc, txt);
+
 }
 
 /*-----------------------------------------------------------*/
@@ -109,7 +123,8 @@ void RenderLose
     Controller* controller, 
     Particles* particles,
     Assets* assets,
-    Menu* menu
+    Menu* menu,
+    zGrid* world
 )/*-----------------------------------------------------------*/
 {/*-----------------------------------------------------------*/
 

@@ -947,8 +947,8 @@ Menu CreateMenu(const char* config_section)
 		config_key[chr_mark] = 's';
 		const char* text_raw = ini_get(menu_config, config_section, config_key);
 
-		printf("values from ini file:\n text: %s\n margins_x: (%f, %f)\n margins_y: (%f, %f)\n src_loc: (%d, %d)\n slice dim: %d\n",
-		text_raw, margins_x_raw.x, margins_x_raw.y, margins_y_raw.x, margins_y_raw.y, src_raw.x, src_raw.y, slice_dim_raw);
+		// printf("values from ini file:\n text: %s\n margins_x: (%f, %f)\n margins_y: (%f, %f)\n src_loc: (%d, %d)\n slice dim: %d\n",
+		// text_raw, margins_x_raw.x, margins_x_raw.y, margins_y_raw.x, margins_y_raw.y, src_raw.x, src_raw.y, slice_dim_raw);
 		
 		menu.buttons[i] = AddButton(src_raw, slice_dim_raw, margins_x_raw, margins_y_raw, text_raw, txt_offset_y_normal_raw, txt_offset_y_hovered_raw, txt_offset_y_pressed_raw);
 	}
@@ -987,16 +987,16 @@ Button AddButton(i2 src_loc, u32 slice_dim, r2 margins_x, r2 margins_y, const ch
 	btn.txt_offset_y_hovered = txt_offset_y_hovered;
 	btn.txt_offset_y_pressed = txt_offset_y_pressed;
 
-	printf("\nprocessed values from button:\n src: (%d, %d)\n dst_loc: (%d, %d)\n dst_siz: (%d, %d)\n slice_dim: %d\n txt: %s\n\n",
-	btn.src_loc.x, 
-	btn.src_loc.y, 
-	btn.dst_loc.x,
-	btn.dst_loc.y,
-	btn.dst_siz.x,
-	btn.dst_siz.y,
-	btn.slice_dim,
-	btn.txt
-	);
+	// printf("\nprocessed values from button:\n src: (%d, %d)\n dst_loc: (%d, %d)\n dst_siz: (%d, %d)\n slice_dim: %d\n txt: %s\n\n",
+	// btn.src_loc.x, 
+	// btn.src_loc.y, 
+	// btn.dst_loc.x,
+	// btn.dst_loc.y,
+	// btn.dst_siz.x,
+	// btn.dst_siz.y,
+	// btn.slice_dim,
+	// btn.txt
+	// );
 	return btn;
 }
 
@@ -1458,6 +1458,26 @@ void DrawTextScreenCentered(Viewport* viewport, zFont* font, SDL_Color color, SD
 	i32 w = len * font->siz.x;
 	i32 h = font->siz.y;
 	i2 loc = make_i2(dst.x + ((dst.w/2) - (w/2)), dst.y + ((dst.h/2) - (h/2)));
+	i2 screen_pos = loc;
+	SDL_Rect src = {0, 0, font->siz.x, font->siz.y};
+	SDL_Rect _dst = {loc.x, loc.y, font->siz.x, font->siz.y};
+	SDL_SetTextureColorMod(font->glyphs, color.r, color.g, color.b);
+	while(text[i] != '\0')
+    {
+        i32 glyph_idx = text[i] - ZFONT_ASCII_OFFSET;
+		src.x = (glyph_idx % ZFONT_DEFAULT_MAX_COL) * font->siz.x;
+		src.y = (glyph_idx / ZFONT_DEFAULT_MAX_COL) * font->siz.y;
+		_dst.x = screen_pos.x + i * font->siz.x + font->spacing.x;
+		_dst.y = screen_pos.y;//+ i * font->siz.y + font->spacing.y;
+
+        SDL_RenderCopy(viewport->renderer, font->glyphs, &src, &_dst);
+        i++;
+    }
+}
+
+void DrawTextScreen(Viewport* viewport, zFont* font, SDL_Color color, i2 loc, const char* text)
+{
+	i32 i = 0;
 	i2 screen_pos = loc;
 	SDL_Rect src = {0, 0, font->siz.x, font->siz.y};
 	SDL_Rect _dst = {loc.x, loc.y, font->siz.x, font->siz.y};

@@ -10,6 +10,7 @@
 #define T_UI_ATLAS 1
 #define T_PLAYER_ATLAS 2
 //texture paths
+#define T_TILE_ATLAS_PATH "./assets/texture/tilemap.png"
 #define T_UI_ATLAS_PATH "./assets/texture/gui.png"
 
 //cursors

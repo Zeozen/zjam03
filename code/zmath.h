@@ -31,6 +31,7 @@
 
 #define WORLD_UNIT 8
 #define WORLD_UNIT_F 8.f
+#define WORLD_FRAC 0.125f // 1 / world_unit
 
 
 

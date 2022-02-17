@@ -20,6 +20,7 @@ typedef struct
 	Assets* assets;
 	Particles* particles;
 	Menu* menus;
+	zGrid* world;
 	Gamestate gamestate_old;
 	Gamestate gamestate_now;
 	Gamestate gamestate_new;
@@ -164,18 +165,18 @@ printf("Gamestate change from %s \tto %s was deemed illegal!\n", GetGamestateNam
 					engine->gamestate_new = GAMESTATE_MAIN;
 	                break;
 	            case GAMESTATE_MAIN:
-					engine->gamestate_new = UpdateMain(t, DT_SEC, engine->t_0_gamestate_change, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus);
+					engine->gamestate_new = UpdateMain(t, DT_SEC, engine->t_0_gamestate_change, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus, engine->world);
 	                break;
 				case GAMESTATE_OPTS:
-					engine->gamestate_new = UpdateOpts(t, DT_SEC, engine->t_0_gamestate_change, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus);
+					engine->gamestate_new = UpdateOpts(t, DT_SEC, engine->t_0_gamestate_change, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus, engine->world);
 				break;					
 	            case GAMESTATE_PLAY:
-					engine->gamestate_new = UpdatePlay(t, DT_SEC, engine->t_0_gamestate_change, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus);
+					engine->gamestate_new = UpdatePlay(t, DT_SEC, engine->t_0_gamestate_change, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus, engine->world);
 	                break;
 	            case GAMESTATE_EVNT:
 	                break;
 	            case GAMESTATE_LOSE:
-					engine->gamestate_new = UpdateLose(t, DT_SEC, engine->t_0_gamestate_change, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus);
+					engine->gamestate_new = UpdateLose(t, DT_SEC, engine->t_0_gamestate_change, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus, engine->world);
 	                break;
 	            case GAMESTATE_GOAL:
 #if DEBUGPRNT
@@ -211,18 +212,18 @@ printf("Gamestate entered state it shouldn't be in: %s \tto %s !\n", GetGamestat
 			case GAMESTATE_INIT:
 			break;
 			case GAMESTATE_MAIN:
-				RenderMain(t_r, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus);
+				RenderMain(t_r, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus, engine->world);
 			break;
 			case GAMESTATE_OPTS:
-				RenderOpts(t_r, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus);
+				RenderOpts(t_r, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus, engine->world);
 			break;			
 			case GAMESTATE_PLAY:
-				RenderPlay(t_r, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus);
+				RenderPlay(t_r, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus, engine->world);
 			break;
 			case GAMESTATE_EVNT:
 			break;
 			case GAMESTATE_LOSE:
-				RenderLose(t_r, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus);
+				RenderLose(t_r, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus, engine->world);
 			break;
 			case GAMESTATE_GOAL:
 			break;
@@ -243,13 +244,15 @@ int main(int argc, char* argv[])
 {
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv INIT vvvvvvvvvvvvvvvvvvvvvvvvvv*/
 	SetupSDL();
-	Viewport* viewport = CreateViewport("ZENGINE");
+	Viewport* viewport = CreateViewport("To make sacred");
 	Game* game = CreateGame();
 	Controller* controller = CreateController();
 	Assets* assets = CreateAssets(viewport);
 	viewport->camera = CreateCamera(ZERO_R2);
 	Particles* particles = InitParticles();
 	Menu* menus = malloc(sizeof(Menu) * MAX_MENUS);
+	i2 wrld_dim = make_i2(48, 128);
+	zGrid* world = CreateGrid(wrld_dim.x, wrld_dim.y, make_r2(-WORLD_UNIT_F * wrld_dim.x/2, -WORLD_UNIT_F * wrld_dim.y + WORLD_UNIT_F * 4.f));
 	menus[MENU_TITLE] = CreateMenu("main");
 	menus[MENU_OPTIONS] = CreateMenu("options");
 	menus[MENU_OPTIONS_VIDEO] = CreateMenu("options_video");
@@ -265,9 +268,11 @@ int main(int argc, char* argv[])
 	engine->gamestate_now = GAMESTATE_INIT;
 	engine->gamestate_new = GAMESTATE_INIT;
 	engine->menus = menus;
+	engine->world = world;
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ INIT ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv LOAD ASSETS vvvvvvvvvvvvvvvvvvvvvvvvvv*/
+LoadTexture(assets, T_TILE_ATLAS, viewport->renderer, T_TILE_ATLAS_PATH);
 LoadTexture(assets, T_UI_ATLAS, viewport->renderer, T_UI_ATLAS_PATH);
 
 LoadFont(assets, FONT_ID_ZSYS, viewport->renderer, FONT_PATH_ZSYS);
@@ -307,6 +312,7 @@ printf("\n~~~Exiting game!~~~\n");
 	// free all things
 	FreeParticles(particles);
 	FreeMenus(menus);
+	FreeGrid(world);
 	FreeController(controller);
 	FreeAssets(assets);
 	FreeViewport(viewport);

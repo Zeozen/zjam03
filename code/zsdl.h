@@ -90,6 +90,7 @@ typedef struct ZSDL_Font
 
 void DrawTextWorld(Viewport* viewport, zFont* font, SDL_Color color, r2 pos, r32 depth, const char* text);
 void DrawTextScreenCentered(Viewport* viewport, zFont* font, SDL_Color color, SDL_Rect dst, const char* text);
+void DrawTextScreen(Viewport* viewport, zFont* font, SDL_Color color, i2 loc, const char* text);
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ FONT ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv ASSETBANK vvvvvvvvvvvvvvvvvvvvvvvvvv*/
