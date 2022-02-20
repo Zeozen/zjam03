@@ -27,7 +27,7 @@ typedef struct ZSDL_Font zFont;
 #define ZSDL_INTERNAL_HALFWIDTH 192
 #define ZSDL_INTERNAL_HALFHEIGHT 108
 
-#define ZSDL_RENDERLAYERS_MAX 5
+#define ZSDL_RENDERLAYERS_MAX 6
 typedef enum
 {
     ZSDL_RENDERLAYER_BACKGROUND,
@@ -35,6 +35,7 @@ typedef enum
     ZSDL_RENDERLAYER_FOREGROUND,
     ZSDL_RENDERLAYER_UI,
     ZSDL_RENDERLAYER_POST_PROCESS,
+    ZSDL_RENDERLAYER_DEBUGGING
 }ZSDL_RENDERLAYER;
 
 
@@ -95,12 +96,12 @@ void DrawTextScreen(Viewport* viewport, zFont* font, SDL_Color color, i2 loc, co
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv ASSETBANK vvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #define ASSETBANK_TEXTURES_MAX 16
-#define ASSETBANK_SOUNDS_MAX 8
-#define ASSETBANK_MUSIC_MAX 2
+#define ASSETBANK_SOUNDS_MAX 24
+#define ASSETBANK_MUSIC_MAX 1
 #define ASSETBANK_CURSORS_MAX 7
-#define ASSETBANK_SURFACES_MAX 6
+#define ASSETBANK_SURFACES_MAX 1
 #define ASSETBANK_FONTS_MAX 2
-#define ASSETBANK_STRINGS_MAX 5
+#define ASSETBANK_STRINGS_MAX 10
 
 typedef struct Assets
 {
@@ -123,6 +124,7 @@ void GenerateString(Assets* assets, i32 identifier, const char* string);
 void LoadTexture(Assets* assets, i32 identifier, SDL_Renderer* renderer, const char* path);
 void LoadCursor(Assets* assets, i32 identifier, const char* path);
 void LoadFont(Assets* assets, i32 identifier, SDL_Renderer* renderer, const char* path);
+void MixSFX();
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ ASSETBANK ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 
@@ -150,11 +152,14 @@ void LoadFont(Assets* assets, i32 identifier, SDL_Renderer* renderer, const char
 #define A_FSCR 15 // fullscreen
 #define A_ESC 16
 #define A_RSIZ 17 // resize window
-#define A_ONE 18 //numbers, usually action or hotbar
-#define A_TWO 19 //numbers, usually action or hotbar
-#define A_THREE 20 //numbers, usually action or hotbar
-#define A_FOUR 21 //numbers, usually action or hotbar
-#define A_TAB 22
+#define A_1 18 //numbers, usually action or hotbar
+#define A_2 19 //numbers, usually action or hotbar
+#define A_3 20 //numbers, usually action or hotbar
+#define A_4 21 //numbers, usually action or hotbar
+#define A_5 22 //numbers, usually action or hotbar
+#define A_6 23 //numbers, usually action or hotbar
+#define A_TAB 24
+#define A_ENTR 25
 
 typedef struct Controller
 {
@@ -314,26 +319,26 @@ typedef struct Button
 typedef enum
 {
 	BTN_PLAY = 0,
-	BTN_OPTS,
-	BTN_QUIT,
-	BTN_OPTS_VIDEO = 0,
-	BTN_OPTS_AUDIO,
-	BTN_OPTS_INPUT,
-	BTN_OPTS_RETRN,
-	BTN_OPTS_VIDEO_FSCREEN = 0,
-	BTN_OPTS_AUDIO_MAIN_VOLUME = 0,
-	BTN_OPTS_INPUT_REBIND = 0,
+	// BTN_OPTS,
+	BTN_QUIT = 1,
+	// BTN_OPTS_VIDEO = 0,
+	// BTN_OPTS_AUDIO,
+	// BTN_OPTS_INPUT,
+	// BTN_OPTS_RETRN,
+	// BTN_OPTS_VIDEO_FSCREEN = 0,
+	// BTN_OPTS_AUDIO_MAIN_VOLUME = 0,
+	// BTN_OPTS_INPUT_REBIND = 0,
 } E_Button_Name;
 #define MAX_BUTTONS 10
 
 typedef enum
 {
 	MENU_TITLE,
-	MENU_OPTIONS,
-	MENU_OPTIONS_VIDEO,
-	MENU_OPTIONS_AUDIO,
-	MENU_OPTIONS_INPUT,
-	MENU_QUIT_PROMPT,
+	// MENU_OPTIONS,
+	// MENU_OPTIONS_VIDEO,
+	// MENU_OPTIONS_AUDIO,
+	// MENU_OPTIONS_INPUT,
+	// MENU_QUIT_PROMPT,
 } E_Menu_Name;
 
 #define MAX_MENUS 5
@@ -380,6 +385,8 @@ r2 CamToPos(i2 cam, Viewport* viewport);
 #define COLOR_PURPLE COLOR(0xff, 0x00, 0xff, 0xff)
 #define COLOR_BLACK COLOR(0x00, 0x00, 0x00, 0xff)
 #define COLOR_WHITE COLOR(0xff, 0xff, 0xff, 0xff)
+#define COLOR_WHITE_TRANSPARENT COLOR(0xff, 0xff, 0xff, 0x00)
+#define COLOR_BLACK_TRANSPARENT COLOR(0xff, 0xff, 0xff, 0x00)
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ RENDER SUPPORT FUNCTIONS ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv ANALYSIS FUNCTIONS vvvvvvvvvvvvvvvvvvvvvvvvvv*/

@@ -50,7 +50,22 @@ void FreeGame(Game* game)
 void RestartGame(Game* game)
 {
 	memset(game, 0, sizeof(Game));
+	game->doom_below = 64.f;
+	game->player.pos = ZERO_R2;
+	game->sacrifice_made = 0;
 	SEED_ZRNG();
+}
+
+
+void DrawPlayer(Game* game, Viewport* viewport, Assets* assets)
+{
+	SDL_SetRenderTarget(viewport->renderer, viewport->render_layer[ZSDL_RENDERLAYER_ENTITIES]);
+	i2 p_loc = PosToCam(game->player.pos, 1.f, viewport);
+	SDL_Rect p_src = {game->anim_chara * WORLD_UNIT, game->player.anim * WORLD_UNIT, WORLD_UNIT, WORLD_UNIT};
+	// r2 p_stretch = make_r2(1.f, 1.f);
+	// p_stretch.y = LerpR32()
+	SDL_Rect p_dst = {p_loc.x - WORLD_UNIT*0.5, p_loc.y - WORLD_UNIT*0.5, WORLD_UNIT, WORLD_UNIT};
+	SDL_RenderCopyEx(viewport->renderer, assets->tex[T_CHARACTER_ATLAS], &p_src, &p_dst, 0.0, NULL, game->player.dir);
 }
 
 

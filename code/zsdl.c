@@ -26,10 +26,7 @@ b8 SetupSDL()
 		Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 2, 4096);
 		Mix_AllocateChannels(ASSETBANK_SOUNDS_MAX);
 		Mix_ReserveChannels(ASSETBANK_SOUNDS_MAX);
-		for (i32 i = 0; i < ASSETBANK_SOUNDS_MAX; i++)
-			Mix_Volume(i, MIX_MAX_VOLUME/2);
 
-		Mix_VolumeMusic(255);
 
 		return 1;
 	}
@@ -496,6 +493,21 @@ void LoadFont(Assets* assets, i32 identifier, SDL_Renderer* renderer, const char
 	}
 }
 
+void MixSFX()
+{
+	for (i32 i = 0; i < ASSETBANK_SOUNDS_MAX; i++)
+		Mix_Volume(i, MIX_MAX_VOLUME/2);
+	Mix_VolumeMusic(255);
+
+	for (i32 i = SFX_MUS_BASS; i < ASSETBANK_SOUNDS_MAX; i++)
+		Mix_Volume(i, 0);
+
+	Mix_Volume(SFX_TAP, 230);
+	Mix_Volume(SFX_COLLECT_CRYSTAL, MIX_MAX_VOLUME/8);
+	Mix_Volume(SFX_COLLECT_FRIEND, MIX_MAX_VOLUME/8);
+
+}
+
 
 
 
@@ -572,10 +584,14 @@ void CollectInput(Controller* c)
 	c->actions |= ACTION(A_DBUG) 	* keystate[SDL_SCANCODE_F11];
 	c->actions |= ACTION(A_ESC) 	* keystate[SDL_SCANCODE_ESCAPE];
 	c->actions |= ACTION(A_SHFT) 	* keystate[SDL_SCANCODE_LSHIFT];
-	c->actions |= ACTION(A_ONE) 	* keystate[SDL_SCANCODE_1];
-	c->actions |= ACTION(A_TWO) 	* keystate[SDL_SCANCODE_2];
-	c->actions |= ACTION(A_THREE) 	* keystate[SDL_SCANCODE_3];
+	c->actions |= ACTION(A_1) 		* keystate[SDL_SCANCODE_1];
+	c->actions |= ACTION(A_2) 		* keystate[SDL_SCANCODE_2];
+	c->actions |= ACTION(A_3) 		* keystate[SDL_SCANCODE_3];
+	c->actions |= ACTION(A_4) 		* keystate[SDL_SCANCODE_4];
+	c->actions |= ACTION(A_5) 		* keystate[SDL_SCANCODE_5];
+	c->actions |= ACTION(A_6) 		* keystate[SDL_SCANCODE_6];
 	c->actions |= ACTION(A_TAB) 	* keystate[SDL_SCANCODE_TAB];
+	c->actions |= ACTION(A_ENTR) 	* keystate[SDL_SCANCODE_RETURN];
 
 	SDL_Event e;
 	while (SDL_PollEvent(&e))
@@ -1133,7 +1149,7 @@ void DrawMenu(Menu menu, Viewport* viewport, Assets* assets)
 			// 	menu.buttons[i].dst_loc.x + menu.buttons[i].dst_siz.x * 0.5f - txt_siz.x * 0.5f,
 			// 	menu.buttons[i].dst_loc.y + menu.buttons[i].dst_siz.y * 0.5f - txt_siz.y * 0.5f,
 			// };
-			DrawTextScreenCentered(viewport, assets->fon[FONT_ID_ZSYS], COLOR_BLACK, txt_dst, menu.buttons[i].txt);
+			DrawTextScreenCentered(viewport, assets->fon[FONT_ID_ZSYS], COLOR_WHITE, txt_dst, menu.buttons[i].txt);
 
 		}
 	}
@@ -1241,10 +1257,10 @@ void CleanRenderTargets(Viewport* viewport)
 	SDL_SetRenderDrawColor(viewport->renderer, 0x00, 0x00, 0x00, 0x00);
     SDL_SetRenderTarget(viewport->renderer, NULL);
 	SDL_RenderClear(viewport->renderer);
-	//clear all layers except ui and fade (last two renderlayers), clear those manutally elsewhere
+	//clear all layers except debug layer which is used and clear in logic update
 	// we do it in reverse so we end up with renderlayer_background to begin next frame with
 
-	for  (i32 i = ZSDL_RENDERLAYERS_MAX - 1; i >= 0; i--) 
+	for  (i32 i = ZSDL_RENDERLAYERS_MAX - 2; i >= 0; i--) 
 	{
 		SDL_SetRenderTarget(viewport->renderer, viewport->render_layer[i]);
 		SDL_RenderClear(viewport->renderer);
@@ -1261,6 +1277,9 @@ void FinalizeRenderAndPresent(Viewport* viewport)
 		//	SDL_SetRenderDrawBlendMode(viewport->renderer, SDL_BLENDMODE_NONE);
 		SDL_RenderCopy(viewport->renderer, viewport->render_layer[i], NULL, &viewport->screen);
 	}
+	u8 fade_alpha = GET8IN64(viewport->settings, ZSDL_SETTINGS_BYTE_FADE_ALPHA);
+	SDL_SetRenderDrawColor(viewport->renderer, 0x00, 0x00, 0x00, fade_alpha);
+	SDL_RenderFillRect(viewport->renderer, NULL);
     SDL_RenderPresent(viewport->renderer);
 	SDL_SetRenderDrawBlendMode(viewport->renderer, SDL_BLENDMODE_NONE);
 }
@@ -1478,19 +1497,30 @@ void DrawTextScreenCentered(Viewport* viewport, zFont* font, SDL_Color color, SD
 void DrawTextScreen(Viewport* viewport, zFont* font, SDL_Color color, i2 loc, const char* text)
 {
 	i32 i = 0;
+	i32 l = 0;
+	i32 c = 0;
 	i2 screen_pos = loc;
 	SDL_Rect src = {0, 0, font->siz.x, font->siz.y};
 	SDL_Rect _dst = {loc.x, loc.y, font->siz.x, font->siz.y};
 	SDL_SetTextureColorMod(font->glyphs, color.r, color.g, color.b);
 	while(text[i] != '\0')
     {
-        i32 glyph_idx = text[i] - ZFONT_ASCII_OFFSET;
-		src.x = (glyph_idx % ZFONT_DEFAULT_MAX_COL) * font->siz.x;
-		src.y = (glyph_idx / ZFONT_DEFAULT_MAX_COL) * font->siz.y;
-		_dst.x = screen_pos.x + i * font->siz.x + font->spacing.x;
-		_dst.y = screen_pos.y;//+ i * font->siz.y + font->spacing.y;
+		if (text[i] == '}')
+		{
+			l++;
+			c = 0;
+		}
+        else 
+		{
+			i32 glyph_idx = text[i] - ZFONT_ASCII_OFFSET;
+			src.x = (glyph_idx % ZFONT_DEFAULT_MAX_COL) * font->siz.x;
+			src.y = (glyph_idx / ZFONT_DEFAULT_MAX_COL) * font->siz.y;
+			_dst.x = screen_pos.x + c * font->siz.x + font->spacing.x;
+			_dst.y = screen_pos.y + (l * (font->siz.y + font->spacing.y));
 
-        SDL_RenderCopy(viewport->renderer, font->glyphs, &src, &_dst);
+        	SDL_RenderCopy(viewport->renderer, font->glyphs, &src, &_dst);
+			c++;
+		}
         i++;
     }
 }

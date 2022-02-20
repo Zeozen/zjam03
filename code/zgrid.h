@@ -30,7 +30,7 @@ typedef struct
 } zGrid;
 
 zGrid* CreateGrid(u16 width, u16 height, r2 origin);
-void DrawGrid(zGrid* grid, Viewport* viewport, Assets* assets);
+void DrawGrid(zGrid* grid, Viewport* viewport, Assets* assets, u32 anim);
 void FreeGrid(zGrid* grid);
 
 u8 ValidateCel(i2 cel, zGrid* grid);

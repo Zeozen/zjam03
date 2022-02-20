@@ -14,29 +14,80 @@ zGrid* CreateGrid(u16 width, u16 height, r2 origin)
 	new_grid->height 	= height;
 	new_grid->origin 	= origin;
 
-	for (i32 v = 0; v < height; v++)
-	{
-		for (i32 u = 0; u < width; u++)
-		{
-			if ((u == 0) || (u == width-1) || (v == 0) || (v == height - 1))
-			{
-				new_grid->cell[u + v * width].sprite_mg = MAKE8FROM4(0, 1);
-				new_grid->cell[u + v * width].collision = 1;
+//deserialize
+	FILE* flvl = fopen("./assets/design/level.bin", "rb");
+	u8* buf = malloc(sizeof(u8)*8);
 
-			}
-			else
-			{
-				new_grid->cell[u + v * width].sprite_mg = 0;
-				new_grid->cell[u + v * width].collision = 0;
-			}
-		}
+	for (i32 i = 0; i < width * height; i++)
+	{
+		fread(buf, sizeof(u8), 8, flvl);
+		new_grid->cell[i].collision = buf[0];
+		new_grid->cell[i].type = buf[1];
+		new_grid->cell[i].id = buf[2];
+		new_grid->cell[i].sprite_bg = buf[3];
+		new_grid->cell[i].sprite_mg = buf[4];
+		new_grid->cell[i].sprite_fg = buf[5];
+		new_grid->cell[i].unused_0 = buf[6];
+		new_grid->cell[i].unused_1 = buf[7];
 	}
+
+	fclose(flvl);
+	free(buf);
+
+
+/* FLUSHING */
+	// for (i32 y = 0; y < height; y++)
+	// {
+	// 	for (i32 x = 0; x < width; x++)
+	// 	{
+	// 		if (x == 0 || x == width - 1 || y == 0 || y == height -1)
+	// 		{
+	// 			i32 i = x + y * width;
+	// 			new_grid->cell[i].collision = 1;
+	// 			new_grid->cell[i].type = 1;
+	// 			new_grid->cell[i].sprite_mg = MAKE8FROM4(1, 0);
+	// 		}
+	// 		else
+	// 		{
+	// 			i32 i = x + y * width;
+	// 			new_grid->cell[i].collision = 0;
+	// 			new_grid->cell[i].type = 0;
+	// 			new_grid->cell[i].sprite_mg = 0;
+
+	// 		}
+	// 	}
+	// }
+	// 	//save edits
+	// FILE* flushlevel = fopen("./assets/design/level.bin", "wb");
+	// u8* flush_buf = malloc(sizeof(u8)*8);
+
+	// for (i32 i = 0; i < new_grid->width * new_grid->height; i++)
+	// {
+	// 	flush_buf[0] = new_grid->cell[i].collision;
+	// 	flush_buf[1] = new_grid->cell[i].type;
+	// 	flush_buf[2] = new_grid->cell[i].id;
+	// 	flush_buf[3] = new_grid->cell[i].sprite_bg;
+	// 	flush_buf[4] = new_grid->cell[i].sprite_mg;
+	// 	flush_buf[5] = new_grid->cell[i].sprite_fg;
+	// 	flush_buf[6] = new_grid->cell[i].unused_0;
+	// 	flush_buf[7] = new_grid->cell[i].unused_1;
+	// 	fwrite(flush_buf, sizeof(u8), 8, flushlevel);
+	// }
+
+	// fclose(flushlevel);
+	// free(flush_buf);
+/* FLUSHING END*/
+
+
 
 	return new_grid;
 }
 
 void FreeGrid(zGrid* grid)
 {
+
+
+
 	if (grid != NULL)
 	{
 		free(grid->cell);
@@ -46,7 +97,7 @@ void FreeGrid(zGrid* grid)
 	}
 }
 
-void DrawGrid(zGrid* grid, Viewport* viewport, Assets* assets)
+void DrawGrid(zGrid* grid, Viewport* viewport, Assets* assets, u32 anim)
 {
 // find cels to draw //TODO zooming
 	r2 cel_0_pos = sub_r2(viewport->camera->pos, make_r2(ZSDL_INTERNAL_HALFWIDTH, ZSDL_INTERNAL_HALFHEIGHT));
@@ -60,7 +111,7 @@ void DrawGrid(zGrid* grid, Viewport* viewport, Assets* assets)
 
 //draw grid background layer
 	SDL_SetRenderTarget(viewport->renderer, viewport->render_layer[ZSDL_RENDERLAYER_BACKGROUND]);
-	i2 origin_cam = PosToCam(grid->origin, 1.f, viewport);
+	//i2 origin_cam = PosToCam(grid->origin, 1.f, viewport);
 	// SDL_Rect whole_grid = {origin_cam.x, origin_cam.y, grid->width*WORLD_UNIT, grid->height*WORLD_UNIT};
 	// SDL_SetRenderDrawColor(viewport->renderer, 0xff, 0x00, 0x00, 0xff);
 	// SDL_RenderFillRect(viewport->renderer, &whole_grid);
@@ -75,6 +126,7 @@ void DrawGrid(zGrid* grid, Viewport* viewport, Assets* assets)
 			{
 				i32 idx = CelToIdx(cel, grid);
 				SDL_Rect src = CelSpriteSource(idx, grid, SPRITELAYER_MG);
+				src.x = anim * WORLD_UNIT;
 				r2 cel_pos = CelToPos(cel, grid);
 				i2 cel_cam = PosToCam(cel_pos, 1.f, viewport);
 				SDL_Rect dst = {cel_cam.x, cel_cam.y, WORLD_UNIT, WORLD_UNIT};
@@ -110,22 +162,22 @@ u8 ValidateCel(i2 cel, zGrid* grid)
 
 u32 CelToIdx(i2 cel, zGrid* grid)
 {
-	if (ValidateCel(cel, grid))
+	//if (ValidateCel(cel, grid))
 		return cel.x + cel.y * grid->width;
-	else
-		return 0;
+	//else
+	//	return 0;
 }
 
 i2 IdxToCel( u32 index, zGrid* grid)
 {
-	if (index < grid->width * grid->height)
-	{
+	//if (index < grid->width * grid->height)
+	//{
 		return make_i2(index % grid->width, index / grid->width);
-	}
-	else
-	{
-		return make_i2(0, 0);
-	}
+//	//}
+//	//else
+//	//{
+//	//	return make_i2(0, 0);
+	//}
 }
 
 
@@ -144,10 +196,10 @@ i2 PosToCel(r2 pos, zGrid* grid)
 	r2 normalized = sub_r2(pos, grid->origin);
 	i2 pix = r2_to_i2(normalized);
 	i2 cel = i2_div_n(pix, WORLD_UNIT);
-	if (ValidateCel(cel, grid))
+	//if (ValidateCel(cel, grid))
 		return cel;
-	else
-		return ZERO_I2;
+	//else
+	//	return ZERO_I2;
 	//i2 cel = i2_div_n(r2_to_i2(pos), WORLD_UNIT);
 	//return add_i2(cel, r2_to_i2(grid->origin));
 }
@@ -164,26 +216,23 @@ r2 IdxToPos( u32 idx, zGrid* grid)
 
 SDL_Rect CelSpriteSource(i32 idx, zGrid* grid, i32 layer)
 {
-	u8 row = 0;
-	u8 col = 0;
+	SDL_Rect src = {0, 0, WORLD_UNIT, WORLD_UNIT};
 	switch (layer)
 	{
 	case SPRITELAYER_BG:
-		row = GET4IN8(grid->cell[idx].sprite_bg, BITPOS_SPRITE_ROW);
-		col = GET4IN8(grid->cell[idx].sprite_bg, BITPOS_SPRITE_COL);
+		// row = GET4IN8(grid->cell[idx].sprite_bg, BITPOS_SPRITE_ROW);
+		// col = GET4IN8(grid->cell[idx].sprite_bg, BITPOS_SPRITE_COL);
 		break;
 	case SPRITELAYER_MG:
-		row = GET4IN8(grid->cell[idx].sprite_mg, BITPOS_SPRITE_ROW);
-		col = GET4IN8(grid->cell[idx].sprite_mg, BITPOS_SPRITE_COL);
+			src.y = GET4IN8(grid->cell[idx].sprite_mg, BITPOS_SPRITE_ROW) * WORLD_UNIT;
 		break;
 	case SPRITELAYER_FG:
-		row = GET4IN8(grid->cell[idx].sprite_fg, BITPOS_SPRITE_ROW);
-		col = GET4IN8(grid->cell[idx].sprite_fg, BITPOS_SPRITE_COL);
+		// row = GET4IN8(grid->cell[idx].sprite_fg, BITPOS_SPRITE_ROW);
+		// col = GET4IN8(grid->cell[idx].sprite_fg, BITPOS_SPRITE_COL);
 		break;
 	default:
 		break;
 	}
-	SDL_Rect src = {col * WORLD_UNIT, row * WORLD_UNIT, WORLD_UNIT, WORLD_UNIT};
 	return src;
 }
 

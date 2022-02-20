@@ -65,6 +65,10 @@ void mainloop(void *arg)
 				CalculateScreen(engine->viewport);
 				RefreshCursors(engine->viewport, engine->assets);
 			}
+
+			SDL_SetRenderTarget(engine->viewport->renderer, engine->viewport->render_layer[ZSDL_RENDERLAYER_DEBUGGING]);
+			SDL_SetRenderDrawColor(engine->viewport->renderer, 0, 0, 0, 0);
+			SDL_RenderClear(engine->viewport->renderer);
 			
 /* TRANSITION GAMESTATE BEGIN */
 		    if (engine->gamestate_now != engine->gamestate_new)
@@ -95,9 +99,10 @@ printf("Game exiting state \t%s...\n", GetGamestateName(engine->gamestate_now));
 						break;
 	            		case GAMESTATE_MAIN:
 							ToggleMenu(&engine->menus[MENU_TITLE], ZDISABLED);
+							SDL_ShowCursor(0);
 						break;
 	            		case GAMESTATE_OPTS:
-							ToggleMenu(&engine->menus[MENU_OPTIONS], ZDISABLED);
+							//ToggleMenu(&engine->menus[MENU_OPTIONS], ZDISABLED);
 						break;
 	            		case GAMESTATE_PLAY:
 						break;
@@ -108,6 +113,25 @@ printf("Game exiting state \t%s...\n", GetGamestateName(engine->gamestate_now));
 	            		case GAMESTATE_GOAL:
 						break;
 	            		case GAMESTATE_EDIT:
+							//save edits
+							FILE* flvl = fopen("./assets/design/level.bin", "wb");
+							u8* buf = malloc(sizeof(u8)*8);
+
+							for (i32 i = 0; i < engine->world->width * engine->world->height; i++)
+							{
+								buf[0] = engine->world->cell[i].collision;
+								buf[1] = engine->world->cell[i].type;
+								buf[2] = engine->world->cell[i].id;
+								buf[3] = engine->world->cell[i].sprite_bg;
+								buf[4] = engine->world->cell[i].sprite_mg;
+								buf[5] = engine->world->cell[i].sprite_fg;
+								buf[6] = engine->world->cell[i].unused_0;
+								buf[7] = engine->world->cell[i].unused_1;
+								fwrite(buf, sizeof(u8), 8, flvl);
+							}
+
+							fclose(flvl);
+							free(buf);
 						break;
 	            		case GAMESTATE_EXIT:
 						break;
@@ -124,12 +148,41 @@ printf("Game entering state \t%s...\n", GetGamestateName(engine->gamestate_new))
 							engine->viewport->camera->zoom = ZSDL_CAMERA_MIN_ZOOM;
 						break;
 	            		case GAMESTATE_MAIN:
+						{
+							SDL_ShowCursor(1);
 							ToggleMenu(&engine->menus[MENU_TITLE], ZENABLED);
+							// reload level
+							FILE* flvl = fopen("./assets/design/level.bin", "rb");
+							u8* buf = malloc(sizeof(u8)*8);
+
+							for (i32 i = 0; i < engine->world->width * engine->world->height; i++)
+							{
+								fread(buf, sizeof(u8), 8, flvl);
+								engine->world->cell[i].collision = buf[0];
+								engine->world->cell[i].type = buf[1];
+								engine->world->cell[i].id = buf[2];
+								engine->world->cell[i].sprite_bg = buf[3];
+								engine->world->cell[i].sprite_mg = buf[4];
+								engine->world->cell[i].sprite_fg = buf[5];
+								engine->world->cell[i].unused_0 = buf[6];
+								engine->world->cell[i].unused_1 = buf[7];
+							}
+
+							fclose(flvl);
+							free(buf);
+							Mix_Volume(SFX_MUS_BASS, 200);
+							Mix_Volume(SFX_MUS_HARP, 0);
+							Mix_Volume(SFX_MUS_FLUT, 0);
+							Mix_Volume(SFX_MUS_PADS, 0);
+							Mix_Volume(SFX_MUS_STAR, 0);
+							
 						break;
+						}
 	            		case GAMESTATE_OPTS:
-							ToggleMenu(&engine->menus[MENU_OPTIONS], ZENABLED);
+							//ToggleMenu(&engine->menus[MENU_OPTIONS], ZENABLED);
 						break;						
 	            		case GAMESTATE_PLAY:
+							Mix_Volume(SFX_MUS_HARP, 200);
 						break;
 	            		case GAMESTATE_EVNT:
 						break;
@@ -138,7 +191,29 @@ printf("Game entering state \t%s...\n", GetGamestateName(engine->gamestate_new))
 	            		case GAMESTATE_GOAL:
 						break;
 	            		case GAMESTATE_EDIT:
+						{
+
+						// reload level
+							FILE* flvl = fopen("./assets/design/level.bin", "rb");
+							u8* buf = malloc(sizeof(u8)*8);
+
+							for (i32 i = 0; i < engine->world->width * engine->world->height; i++)
+							{
+								fread(buf, sizeof(u8), 8, flvl);
+								engine->world->cell[i].collision = buf[0];
+								engine->world->cell[i].type = buf[1];
+								engine->world->cell[i].id = buf[2];
+								engine->world->cell[i].sprite_bg = buf[3];
+								engine->world->cell[i].sprite_mg = buf[4];
+								engine->world->cell[i].sprite_fg = buf[5];
+								engine->world->cell[i].unused_0 = buf[6];
+								engine->world->cell[i].unused_1 = buf[7];
+							}
+
+							fclose(flvl);
+							free(buf);
 						break;
+						}
 	            		case GAMESTATE_EXIT:
 						break;
 	        		}
@@ -179,16 +254,10 @@ printf("Gamestate change from %s \tto %s was deemed illegal!\n", GetGamestateNam
 					engine->gamestate_new = UpdateLose(t, DT_SEC, engine->t_0_gamestate_change, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus, engine->world);
 	                break;
 	            case GAMESTATE_GOAL:
-#if DEBUGPRNT
-printf("Gamestate entered state it shouldn't be in: %s \tto %s !\n", GetGamestateName(engine->gamestate_old), GetGamestateName(engine->gamestate_now));
-#endif					
-					engine->gamestate_new = GAMESTATE_EXIT;
+					engine->gamestate_new = UpdateGoal(t, DT_SEC, engine->t_0_gamestate_change, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus, engine->world);	
 	                break;
 	            case GAMESTATE_EDIT:
-#if DEBUGPRNT
-printf("Gamestate entered state it shouldn't be in: %s \tto %s !\n", GetGamestateName(engine->gamestate_old), GetGamestateName(engine->gamestate_now));
-#endif					
-					engine->gamestate_new = GAMESTATE_EXIT;
+					engine->gamestate_new = UpdateEdit(t, DT_SEC, engine->t_0_gamestate_change, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus, engine->world);
 	                break;
 	            case GAMESTATE_EXIT:
 		            break;
@@ -226,8 +295,10 @@ printf("Gamestate entered state it shouldn't be in: %s \tto %s !\n", GetGamestat
 				RenderLose(t_r, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus, engine->world);
 			break;
 			case GAMESTATE_GOAL:
+				RenderGoal(t_r, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus, engine->world);
 			break;
 			case GAMESTATE_EDIT:
+				RenderEdit(t_r, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus, engine->world);
 			break;
 			case GAMESTATE_EXIT:
 			break;
@@ -254,10 +325,10 @@ int main(int argc, char* argv[])
 	i2 wrld_dim = make_i2(48, 128);
 	zGrid* world = CreateGrid(wrld_dim.x, wrld_dim.y, make_r2(-WORLD_UNIT_F * wrld_dim.x/2, -WORLD_UNIT_F * wrld_dim.y + WORLD_UNIT_F * 4.f));
 	menus[MENU_TITLE] = CreateMenu("main");
-	menus[MENU_OPTIONS] = CreateMenu("options");
-	menus[MENU_OPTIONS_VIDEO] = CreateMenu("options_video");
-	menus[MENU_OPTIONS_AUDIO] = CreateMenu("options_audio");
-	menus[MENU_OPTIONS_INPUT] = CreateMenu("options_input");
+	//menus[MENU_OPTIONS] = CreateMenu("options");
+	//menus[MENU_OPTIONS_VIDEO] = CreateMenu("options_video");
+	//menus[MENU_OPTIONS_AUDIO] = CreateMenu("options_audio");
+	//menus[MENU_OPTIONS_INPUT] = CreateMenu("options_input");
 
 	Engine* engine = (Engine*)malloc(sizeof(Engine));
 	engine->viewport = viewport;
@@ -269,13 +340,24 @@ int main(int argc, char* argv[])
 	engine->gamestate_new = GAMESTATE_INIT;
 	engine->menus = menus;
 	engine->world = world;
+
+
+
+
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ INIT ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv LOAD ASSETS vvvvvvvvvvvvvvvvvvvvvvvvvv*/
+	LoadFont(assets, FONT_ID_ZSYS, viewport->renderer, FONT_PATH_ZSYS);
+	SDL_SetRenderDrawColor(viewport->renderer, 0, 0, 0, 0xff);
+	SDL_SetRenderTarget(viewport->renderer, NULL);
+	SDL_RenderClear(viewport->renderer);
+	DrawTextScreenCentered(viewport, assets->fon[FONT_ID_ZSYS], COLOR_WHITE, (SDL_Rect){0, 0, ZSDL_INTERNAL_WIDTH, ZSDL_INTERNAL_HEIGHT}, "loading...");
+	SDL_RenderPresent(viewport->renderer);
+
 LoadTexture(assets, T_TILE_ATLAS, viewport->renderer, T_TILE_ATLAS_PATH);
 LoadTexture(assets, T_UI_ATLAS, viewport->renderer, T_UI_ATLAS_PATH);
+LoadTexture(assets, T_CHARACTER_ATLAS, viewport->renderer, T_CHARACTER_ATLAS_PATH);
 
-LoadFont(assets, FONT_ID_ZSYS, viewport->renderer, FONT_PATH_ZSYS);
 
 LoadCursor(assets, CUR_POINT, CUR_PATH_POINT);
 LoadCursor(assets, CUR_CLICK, CUR_PATH_CLICK);
@@ -286,6 +368,40 @@ LoadCursor(assets, CUR_CROSS, CUR_PATH_CROSS);
 LoadSound(assets, SFX_SELECT, SFX_PATH_SELECT);
 LoadSound(assets, SFX_TAP, SFX_PATH_TAP);
 LoadSound(assets, SFX_HOVER, SFX_PATH_HOVER);
+LoadSound(assets, SFX_FOOTSTEP, SFX_PATH_FOOTSTEP);
+LoadSound(assets, SFX_JUMP, SFX_PATH_JUMP);
+LoadSound(assets, SFX_COLLECT_CRYSTAL, SFX_PATH_COLLECT_CRYSTAL);
+LoadSound(assets, SFX_COLLECT_FRIEND, SFX_PATH_COLLECT_FRIEND);
+LoadSound(assets, SFX_FRIEND_01, SFX_PATH_FRIEND_01);
+LoadSound(assets, SFX_FRIEND_02, SFX_PATH_FRIEND_02);
+LoadSound(assets, SFX_FRIEND_03, SFX_PATH_FRIEND_03);
+LoadSound(assets, SFX_FRIEND_04, SFX_PATH_FRIEND_04);
+LoadSound(assets, SFX_FRIEND_05, SFX_PATH_FRIEND_05);
+LoadSound(assets, SFX_MUS_BASS, SFX_PATH_MUS_BASS);
+LoadSound(assets, SFX_MUS_HARP, SFX_PATH_MUS_HARP);
+LoadSound(assets, SFX_MUS_FLUT, SFX_PATH_MUS_FLUT);
+LoadSound(assets, SFX_MUS_PADS, SFX_PATH_MUS_PADS);
+LoadSound(assets, SFX_MUS_STAR, SFX_PATH_MUS_STAR);
+
+GenerateString(assets, STR_ENDING_LUKEWARM, "I have known thy works, that neither cold art thou nor hot.}I would thou wert cold or hot.}So because thou art lukewarm, and neither cold nor hot,}I am about to vomit thee out of my mouth.");
+
+GenerateString(assets, STR_ENDING_EARLY_DEATH, 
+"Tomorrow, and tomorrow, and tomorrow,}Creeps in this petty pace from day to day,}To the last syllable of recorded time;}And all our yesterdays have lighted fools}The way to dusty death. Out, out, brief candle!}Life's but a walking shadow, a poor player,}That struts and frets his hour upon the stage,}And then is heard no more. It is a tale}Told by an idiot, full of sound and fury,}Signifying nothing.");
+
+GenerateString(assets, STR_INTRO, 
+"The path to becoming one with the stars,is a grueling} and lonesome road not taken by many.}After all, would you sacrifice your humanity;for a shot at immortality?");
+
+GenerateString(assets, STR_ENDING_ALL_CRYSTALS, 
+"The ultimate power!}Going out in a blaze of glory!}Inspire future generations!");
+
+GenerateString(assets, STR_ENDING_SACRIFICE, 
+"In order to reach your goals,}you are willing to sacrifice}those who stand you near.");
+
+GenerateString(assets, STR_ENDING_ALL_FRIENDS, 
+"You leave the world better than when you found it.}No shiny crystals are worth more than close friends.");
+
+GenerateString(assets, STR_SACRIFICE_PROMPT, 
+"Press [ ENTER ] to sacrifice!!");
 
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^ LOAD ASSETS ^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 SetCursor(viewport, assets, CUR_POINT);
@@ -295,6 +411,15 @@ SetCursor(viewport, assets, CUR_POINT);
 ComputePixelScale(engine->viewport);
 CalculateScreen(engine->viewport);
 RefreshCursors(engine->viewport, engine->assets);
+
+MixSFX();
+
+Mix_PlayChannel(SFX_MUS_FLUT, engine->assets->sfx[SFX_MUS_FLUT], -1);
+Mix_PlayChannel(SFX_MUS_BASS, engine->assets->sfx[SFX_MUS_BASS], -1);
+Mix_PlayChannel(SFX_MUS_HARP, engine->assets->sfx[SFX_MUS_HARP], -1);
+Mix_PlayChannel(SFX_MUS_PADS, engine->assets->sfx[SFX_MUS_PADS], -1);
+Mix_PlayChannel(SFX_MUS_STAR, engine->assets->sfx[SFX_MUS_STAR], -1);
+
 
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv MAIN LOOP vvvvvvvvvvvvvvvvvvvvvvvvvv*/

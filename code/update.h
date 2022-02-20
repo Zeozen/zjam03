@@ -8,5 +8,8 @@ Gamestate UpdateMain(u32 t, r32 dt, u32 t0, Viewport* viewport, Game* game, Cont
 Gamestate UpdateOpts(u32 t, r32 dt, u32 t0, Viewport* viewport, Game* game, Controller* controller, Particles* particles, Assets* assets, Menu* menu, zGrid* world);
 Gamestate UpdatePlay(u32 t, r32 dt, u32 t0, Viewport* viewport, Game* game, Controller* controller, Particles* particles, Assets* assets, Menu* menu, zGrid* world);
 Gamestate UpdateLose(u32 t, r32 dt, u32 t0, Viewport* viewport, Game* game, Controller* controller, Particles* particles, Assets* assets, Menu* menu, zGrid* world);
+Gamestate UpdateGoal(u32 t, r32 dt, u32 t0, Viewport* viewport, Game* game, Controller* controller, Particles* particles, Assets* assets, Menu* menu, zGrid* world);
+Gamestate UpdateEdit(u32 t, r32 dt, u32 t0, Viewport* viewport, Game* game, Controller* controller, Particles* particles, Assets* assets, Menu* menu, zGrid* world);
+Gamestate UpdateEvent(u32 t, r32 dt, u32 t0, Viewport* viewport, Game* game, Controller* controller, Particles* particles, Assets* assets, Menu* menu, zGrid* world);
 
 #endif // !UPDATE_H
