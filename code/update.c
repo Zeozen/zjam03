@@ -16,9 +16,16 @@ Gamestate UpdateMain
     zGrid* world
 )/*-----------------------------------------------------------*/
 {/*-----------------------------------------------------------*/
-    if (ActionPressed(controller, A_EDIT))
+    // if (ActionPressed(controller, A_EDIT))
+    // {
+    //     return GAMESTATE_EDIT;
+    // }
+
+    r32 alpha = (t - t0) / 200.f;
+    SET8IN64((1.f - alpha) * 255, &viewport->settings, ZSDL_SETTINGS_BYTE_FADE_ALPHA);
+    if (alpha >= 1.f)
     {
-        return GAMESTATE_EDIT;
+        SET8IN64(0, &viewport->settings, ZSDL_SETTINGS_BYTE_FADE_ALPHA);
     }
 
     // static u8 cam_active = 0;
@@ -383,15 +390,40 @@ u32 old_player_on_ground = game->player.onground;
     u32 pidx = PosToIdx(game->player.pos, world);
     if (world->cell[pidx].type == CRYSTAL)
     {
+        i32 discarded_idx = game->crystals_collected + game->friends_collected;
+        world->cell[game->friend_idx[discarded_idx]].collision = 0;
+        world->cell[game->friend_idx[discarded_idx]].type = 0;
+        world->cell[game->friend_idx[discarded_idx]].sprite_mg = 0;
+        for (i32 i = 0; i < 50; i++)
+        {
+            r2 vel = make_r2(RNEG()*40.f, RNEG()*40.f);
+            SpawnDot(particles, 100, IdxToPos(game->friend_idx[discarded_idx], world), make_r2(RNEG()*40.f, RNEG()*40.f), r2_mul_x(vel, -1.f), 1.f, COLOR_RED, COLOR_BLACK_TRANSPARENT);
+        }
+        Mix_PlayChannel(SFX_FRIEND_DIE, assets->sfx[SFX_FRIEND_DIE], 0);
+
+
         game->crystals_collected++;
         world->cell[pidx].collision = 0;
         world->cell[pidx].type = 0;
         world->cell[pidx].sprite_mg = 0;
         Mix_PlayChannel(SFX_COLLECT_CRYSTAL, assets->sfx[SFX_COLLECT_CRYSTAL], 0);
         SpawnBubble(particles, 100, game->player.pos, ZERO_R2, ZERO_R2, 1.f, 0.f, 100.f, COLOR_WHITE, COLOR_WHITE_TRANSPARENT);
+        
     }
     if (world->cell[pidx].type == FRIEND)
     {
+        i32 discarded_idx = game->crystals_collected + game->friends_collected;
+        world->cell[game->crystal_idx[discarded_idx]].collision = 0;
+        world->cell[game->crystal_idx[discarded_idx]].type = 0;
+        world->cell[game->crystal_idx[discarded_idx]].sprite_mg = 0;
+        for (i32 i = 0; i < 50; i++)
+        {
+            r2 vel = make_r2(RNEG()*40.f, RNEG()*40.f);
+            SpawnDot(particles, 100, IdxToPos(game->crystal_idx[discarded_idx], world), make_r2(RNEG()*40.f, RNEG()*40.f), r2_mul_x(vel, -1.f), 1.f, COLOR_PURPLE, COLOR_BLACK_TRANSPARENT);
+        }
+        Mix_PlayChannel(SFX_CRYSTAL_DIE, assets->sfx[SFX_CRYSTAL_DIE], 0);
+
+
         game->friends_collected++;
         world->cell[pidx].collision = 0;
         world->cell[pidx].type = 0;
@@ -446,46 +478,55 @@ u32 old_player_on_ground = game->player.onground;
         }
     }
 
-    static b8 ready_to_sacrifice = 0;
-    if (ActionPressed(controller, A_ENTR) && ready_to_sacrifice)
-    {
-        game->sacrifice_made = 1;
-        i2 pcel = PosToCel(game->player.pos, world);
-        i2 sacrifice_cel_start;
-        if (pcel.x < 26)
-        {
-            sacrifice_cel_start = make_i2(22,15);
-        }
-        else
-        {
-            sacrifice_cel_start = make_i2(26,15);
-        }
-        for (i32 i = 0; i < game->friends_collected; i++)
-        {
-            u32 idx = CelToIdx(sacrifice_cel_start, world);
-            world->cell[idx].collision = 2;
-            world->cell[idx].sprite_mg = MAKE8FROM4(7, 0);
-            world->cell[idx].type = 1;
-            sacrifice_cel_start.y -= 2;
-        }
-    }
     if ((game->player.pos.y < (world->origin.y + 17 * WORLD_UNIT)) && (game->friends_collected >= 1))
     {
         if (!game->sacrifice_made)
         {
-            DrawTextScreen(viewport, assets->fon[FONT_ID_ZSYS], COLOR_WHITE, make_i2(30, 30), assets->str[STR_SACRIFICE_PROMPT]);
+            DrawTextScreenCentered(viewport, assets->fon[FONT_ID_ZSYS], COLOR_WHITE, (SDL_Rect){10, 10, ZSDL_INTERNAL_WIDTH-20, 40}, assets->str[STR_SACRIFICE_PROMPT]);
+            if (ActionPressed(controller, A_ENTR))
+            {
+                game->sacrifice_made = 1;
+                i2 pcel = PosToCel(game->player.pos, world);
+                i2 sacrifice_cel_start;
+                if (pcel.x < 26)
+                {
+                    sacrifice_cel_start = make_i2(22,15);
+                }
+                else
+                {
+                    sacrifice_cel_start = make_i2(26,15);
+                }
+                for (i32 i = 0; i < game->friends_collected; i++)
+                {
+                    u32 idx = CelToIdx(sacrifice_cel_start, world);
+                    world->cell[idx].collision = 2;
+                    world->cell[idx].sprite_mg = MAKE8FROM4(7, 0);
+                    world->cell[idx].type = 1;
+                    sacrifice_cel_start.y -= 2;
+                }
+                Mix_PlayChannel(SFX_FRIEND_CRY, assets->sfx[SFX_FRIEND_CRY], -1);
+            }
         }
-        ready_to_sacrifice = 1;
     }
 
 //camera update
     viewport->camera->pos.y = game->player.pos.y - CAMERA_GROUND_OFFSET;
    
 //doom update
-    game->doom_below -= 0.01f + 0.056f * game->crystals_collected + 0.020f * game->friends_collected;
+    //game->doom_below -= 0.01f + 0.056f * game->crystals_collected + 0.020f * game->friends_collected;
+    i2 pcel = PosToCel(game->player.pos, world);
+    u32 idx = CelToIdx(pcel, world);
+    // if ((world->cell[idx].type == CAMPFIRE) && (game->friends_collected == MAX_FRIENDS))
+    // {
+    //     game->doom_below -= 1.f;
+    // }
+    // else
+    // {
+        game->doom_below -= 0.01f + 0.049f * game->crystals_collected + 0.017f * game->friends_collected;
+    // }
 
 //anim update
-    game->anim_environ = (t/50) % 4;
+    game->anim_environ = (t/35) % 4;
     u32 old_anim_chara = game->anim_chara;
     game->anim_chara = (t / (36 / (1 + game->crystals_collected))) % 2;
     if (old_anim_chara != game->anim_chara && game->player.anim == P_ANIM_RUN)
@@ -526,11 +567,30 @@ u32 old_player_on_ground = game->player.onground;
     {
         game->friend_pos_crumb[friend_pos_breadcrumb_counter] = game->player.pos;
         friend_pos_breadcrumb_counter = (friend_pos_breadcrumb_counter + 1) % MAX_FRIENDS;
+        
     }
     for (i32 i = 0; i < 5; i++)
     {
         game->friend_pos[i] = lerp_r2(game->friend_pos[i], game->friend_pos_crumb[i], 0.01f + 0.01f*i);
         //game->friend_pos[i] = add_r2(game->friend_pos[i], r2_mul_x(game->player.vel, dt));
+    }
+    if (t % 100 == 0)
+    {
+        if ((game->friends_collected >= 1) && (!game->sacrifice_made))
+        {
+            i32 r = SFX_FRIEND_01 + RNG()*game->friends_collected;
+            Mix_PlayChannel(r, assets->sfx[r], 0);
+        }
+    }
+
+    if (t % 10 == 0)
+    {
+        for (i32 i = 0; i < game->crystals_collected; i++)
+        {
+            r2 vel = make_r2(RNEG()*20.f, RNEG()*20.f);
+            SpawnDot(particles, 100, game->player.pos, make_r2(RNEG()*40.f, RNEG()*40.f), r2_mul_x(vel, -1.f), 1.f, COLOR_WHITE, COLOR_WHITE_TRANSPARENT);
+        }
+
     }
 
     return GAMESTATE_PLAY;
@@ -659,11 +719,11 @@ Gamestate UpdateEdit
     static u8 tool_type = 0;
     if (ActionPressed(controller, A_WHLU))
     {
-        tool_type = (tool_type + 1) % 7;
+        tool_type = (tool_type + 1) % TOOLS_MAX;
     }
     if (ActionPressed(controller, A_WHLD))
     {
-        tool_type = ((tool_type - 1) + 7) % 7;
+        tool_type = ((tool_type - 1) + TOOLS_MAX) % TOOLS_MAX;
     }
     //     tool_type = ERASE; 
     // if (ActionPressed(controller, A_2))
@@ -690,6 +750,7 @@ Gamestate UpdateEdit
             case ERASE:
                 world->cell[idx].collision = 0;
                 world->cell[idx].sprite_mg = 0;
+                world->cell[idx].sprite_bg = 0;
                 world->cell[idx].type = 0;
             break;
             case SOLID:
@@ -722,6 +783,14 @@ Gamestate UpdateEdit
                 world->cell[idx].sprite_mg = MAKE8FROM4(6, 0);
                 world->cell[idx].type = CAMPFIRE;
             break;
+            case STAR_BG:
+                world->cell[idx].sprite_bg = MAKE8FROM4(8, 0);
+                world->cell[idx].type = 0;
+            break;
+            case CAMP_BG:
+                world->cell[idx].sprite_bg = MAKE8FROM4(9, 0);
+                world->cell[idx].type = CAMPFIRE;
+            break;
         }
     }
     
@@ -750,7 +819,47 @@ Gamestate UpdateEvent
     zGrid* world
 )/*-----------------------------------------------------------*/
 {/*-----------------------------------------------------------*/
+    if (game->event == EVNT_INTRO)
+    {
+        static u32 sequence = 0;
+        static u32 t0_fadeout = 0;
 
+        switch(sequence)
+        {
+            case 0:
+            {
+                r32 alpha = (t - t0) / 200.f;
+                SET8IN64((1.f - alpha) * 255, &viewport->settings, ZSDL_SETTINGS_BYTE_FADE_ALPHA);
+                if (alpha >= 1.f)
+                {
+                    sequence = 1;
+                }
+            }
+            break;
+            case 1:
+            {
+                SET8IN64(0, &viewport->settings, ZSDL_SETTINGS_BYTE_FADE_ALPHA);
+                
+                if (ActionPressed(controller, A_MB_L) || ActionPressed(controller, A_JUMP) || ActionPressed(controller, A_ENTR))
+                {
+                    sequence = 2;
+                    t0_fadeout = t;
+                }
+            }
+            break;
+            case 2:
+            {
+                r32 alpha = (t - t0_fadeout) / 200.f;
+                SET8IN64(alpha * 255, &viewport->settings, ZSDL_SETTINGS_BYTE_FADE_ALPHA);
+                if (alpha >= 1.f)
+                {
+                    sequence = 0;
+                    return GAMESTATE_MAIN;
+                }
+            }
+            break;
+        }
+    }
 
     return GAMESTATE_EVNT;
 }

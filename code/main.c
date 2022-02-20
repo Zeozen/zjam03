@@ -76,10 +76,10 @@ void mainloop(void *arg)
    				static b8 transition_allowed[NUMBER_OF_GAMESTATES*NUMBER_OF_GAMESTATES] = 
     			{ //FROM	init    main    opts	play	event,  lose	vict	edit	exit	  TO
                 			1,      0,      0,		0,  	0,      0,      0,		0,		0,		//init
-                			1,      1,      1,		1,  	0,      1,      1,      1,		0,		//main
+                			1,      1,      1,		1,  	1,      1,      1,      1,		0,		//main
                 			0,      1,      1,		0,  	0,      0,      0,      0,		0,		//opts
                 			0,      1,      0,		1,  	1,      1,      1,      1,		0,		//play
-                			0,      1,      0,		1,  	1,      1,      1,      0,		0,		//event
+                			1,      1,      0,		1,  	1,      1,      1,      0,		0,		//event
                 			0,      0,      0,		1,  	1,      1,      0,      0,		0,		//lose
                 			0,      0,      0,		1,  	1,      0,      1,      0,		0,		//vict
                 			0,      1,      0,		1,  	0,      0,      0,      1,		0,		//edit
@@ -105,6 +105,10 @@ printf("Game exiting state \t%s...\n", GetGamestateName(engine->gamestate_now));
 							//ToggleMenu(&engine->menus[MENU_OPTIONS], ZDISABLED);
 						break;
 	            		case GAMESTATE_PLAY:
+							if (Mix_Playing(SFX_FRIEND_CRY))
+							{
+								Mix_HaltChannel(SFX_FRIEND_CRY);
+							}
 						break;
 	            		case GAMESTATE_EVNT:
 						break;
@@ -113,6 +117,7 @@ printf("Game exiting state \t%s...\n", GetGamestateName(engine->gamestate_now));
 	            		case GAMESTATE_GOAL:
 						break;
 	            		case GAMESTATE_EDIT:
+							SDL_ShowCursor(0);
 							//save edits
 							FILE* flvl = fopen("./assets/design/level.bin", "wb");
 							u8* buf = malloc(sizeof(u8)*8);
@@ -155,6 +160,8 @@ printf("Game entering state \t%s...\n", GetGamestateName(engine->gamestate_new))
 							FILE* flvl = fopen("./assets/design/level.bin", "rb");
 							u8* buf = malloc(sizeof(u8)*8);
 
+							i32 c_countr = 4;
+							i32 f_countr = 4;
 							for (i32 i = 0; i < engine->world->width * engine->world->height; i++)
 							{
 								fread(buf, sizeof(u8), 8, flvl);
@@ -166,6 +173,17 @@ printf("Game entering state \t%s...\n", GetGamestateName(engine->gamestate_new))
 								engine->world->cell[i].sprite_fg = buf[5];
 								engine->world->cell[i].unused_0 = buf[6];
 								engine->world->cell[i].unused_1 = buf[7];
+
+								if (engine->world->cell[i].type == FRIEND)
+								{
+									engine->game->friend_idx[f_countr] = i;
+									f_countr--;
+								}
+								if (engine->world->cell[i].type == CRYSTAL)
+								{
+									engine->game->crystal_idx[c_countr] = i;
+									c_countr--;
+								}
 							}
 
 							fclose(flvl);
@@ -183,6 +201,7 @@ printf("Game entering state \t%s...\n", GetGamestateName(engine->gamestate_new))
 						break;						
 	            		case GAMESTATE_PLAY:
 							Mix_Volume(SFX_MUS_HARP, 200);
+							SET8IN64(0, &engine->viewport->settings, ZSDL_SETTINGS_BYTE_FADE_ALPHA);
 						break;
 	            		case GAMESTATE_EVNT:
 						break;
@@ -192,7 +211,7 @@ printf("Game entering state \t%s...\n", GetGamestateName(engine->gamestate_new))
 						break;
 	            		case GAMESTATE_EDIT:
 						{
-
+							SDL_ShowCursor(1);
 						// reload level
 							FILE* flvl = fopen("./assets/design/level.bin", "rb");
 							u8* buf = malloc(sizeof(u8)*8);
@@ -237,7 +256,8 @@ printf("Gamestate change from %s \tto %s was deemed illegal!\n", GetGamestateNam
 			switch (engine->gamestate_now)
 			{
 	            case GAMESTATE_INIT:
-					engine->gamestate_new = GAMESTATE_MAIN;
+					engine->gamestate_new = GAMESTATE_EVNT;
+					engine->game->event = EVNT_INTRO;
 	                break;
 	            case GAMESTATE_MAIN:
 					engine->gamestate_new = UpdateMain(t, DT_SEC, engine->t_0_gamestate_change, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus, engine->world);
@@ -249,6 +269,7 @@ printf("Gamestate change from %s \tto %s was deemed illegal!\n", GetGamestateNam
 					engine->gamestate_new = UpdatePlay(t, DT_SEC, engine->t_0_gamestate_change, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus, engine->world);
 	                break;
 	            case GAMESTATE_EVNT:
+					engine->gamestate_new = UpdateEvent(t, DT_SEC, engine->t_0_gamestate_change, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus, engine->world);				
 	                break;
 	            case GAMESTATE_LOSE:
 					engine->gamestate_new = UpdateLose(t, DT_SEC, engine->t_0_gamestate_change, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus, engine->world);
@@ -290,6 +311,7 @@ printf("Gamestate change from %s \tto %s was deemed illegal!\n", GetGamestateNam
 				RenderPlay(t_r, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus, engine->world);
 			break;
 			case GAMESTATE_EVNT:
+				RenderEvent(t_r, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus, engine->world);
 			break;
 			case GAMESTATE_LOSE:
 				RenderLose(t_r, engine->viewport, engine->game, engine->controller, engine->particles, engine->assets, engine->menus, engine->world);
@@ -383,22 +405,26 @@ LoadSound(assets, SFX_MUS_FLUT, SFX_PATH_MUS_FLUT);
 LoadSound(assets, SFX_MUS_PADS, SFX_PATH_MUS_PADS);
 LoadSound(assets, SFX_MUS_STAR, SFX_PATH_MUS_STAR);
 
-GenerateString(assets, STR_ENDING_LUKEWARM, "I have known thy works, that neither cold art thou nor hot.}I would thou wert cold or hot.}So because thou art lukewarm, and neither cold nor hot,}I am about to vomit thee out of my mouth.");
+LoadSound(assets, SFX_FRIEND_DIE, SFX_PATH_FRIEND_DIE);
+LoadSound(assets, SFX_CRYSTAL_DIE, SFX_PATH_CRYSTAL_DIE);
+LoadSound(assets, SFX_FRIEND_CRY, SFX_PATH_FRIEND_CRY);
+
+GenerateString(assets, STR_ENDING_LUKEWARM, "Is this fine?}Are you satisfied?}You can do more!");
 
 GenerateString(assets, STR_ENDING_EARLY_DEATH, 
 "Tomorrow, and tomorrow, and tomorrow,}Creeps in this petty pace from day to day,}To the last syllable of recorded time;}And all our yesterdays have lighted fools}The way to dusty death. Out, out, brief candle!}Life's but a walking shadow, a poor player,}That struts and frets his hour upon the stage,}And then is heard no more. It is a tale}Told by an idiot, full of sound and fury,}Signifying nothing.");
 
 GenerateString(assets, STR_INTRO, 
-"The path to becoming one with the stars,is a grueling} and lonesome road not taken by many.}After all, would you sacrifice your humanity;for a shot at immortality?");
+"The crystals are coveted as they give power.}The path to becoming one with the stars, is a grueling}and lonesome road not taken by many.}After all, in order to reach it...");
 
 GenerateString(assets, STR_ENDING_ALL_CRYSTALS, 
-"The ultimate power!}Going out in a blaze of glory!}Inspire future generations!");
+"You've gained great power!}Going out in a blaze of glory!}It might be lonely up there,}but future generations look to you as their guide.");
 
 GenerateString(assets, STR_ENDING_SACRIFICE, 
-"In order to reach your goals,}you are willing to sacrifice}those who stand you near.");
+"You obtain power to stand above and beyond!}But Even when it's pulsating in your palm,}it feels hollow, empty.}You've gained power, but at what cost?");
 
 GenerateString(assets, STR_ENDING_ALL_FRIENDS, 
-"You leave the world better than when you found it.}No shiny crystals are worth more than close friends.");
+"You won't light up the night sky,}but the fire that you tend with others}and the smiling hearts you share}burn just as bright.}");
 
 GenerateString(assets, STR_SACRIFICE_PROMPT, 
 "Press [ ENTER ] to sacrifice!!");

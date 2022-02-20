@@ -163,7 +163,9 @@ void RenderLose
     }
     else
     {
-        DrawTextScreen(viewport, assets->fon[FONT_ID_ZSYS], COLOR_WHITE, make_i2(50, 50), assets->str[STR_ENDING_EARLY_DEATH]);
+        SDL_SetRenderTarget(viewport->renderer, viewport->render_layer[ZSDL_RENDERLAYER_UI]);
+        DrawTextScreen(viewport, assets->fon[FONT_ID_ZSYS], COLOR_WHITE, PIC_TXT_DST_LOC, assets->str[STR_ENDING_LUKEWARM]);
+        //SDL_RenderCopy(viewport->renderer, assets->tex[T_UI_ATLAS], &(SDL_Rect){0, PICTURE_INTRO_SRC_Y, PICTURE_SRC_W, PICTURE_SRC_H}, &PICTURE_DST);
     }
 }
 
@@ -225,13 +227,44 @@ void RenderGoal
     }
     else
     {
+        SDL_SetRenderTarget(viewport->renderer, viewport->render_layer[ZSDL_RENDERLAYER_UI]);
         if (game->event == EVNT_WIN_ALL_CRYSTALS)
         {
-            DrawTextScreen(viewport, assets->fon[FONT_ID_ZSYS], COLOR_WHITE, make_i2(50, 50), assets->str[STR_ENDING_ALL_CRYSTALS]);
+            DrawTextScreen(viewport, assets->fon[FONT_ID_ZSYS], COLOR_WHITE, PIC_TXT_DST_LOC, assets->str[STR_ENDING_ALL_CRYSTALS]);
+            SDL_RenderCopy(viewport->renderer, assets->tex[T_UI_ATLAS], &(SDL_Rect){0, PICTURE_WIN_CRYSTALS_SRC_Y, PICTURE_SRC_W, PICTURE_SRC_H}, &PICTURE_DST);
+            DrawTextScreen(viewport, assets->fon[FONT_ID_ZSYS], COLOR_WHITE, PIC_TXT_DST_LOC, assets->str[STR_ENDING_ALL_CRYSTALS]);
         }
         if (game->event == EVNT_WIN_SACRIFICE_FRIENDS)
         {
-            DrawTextScreen(viewport, assets->fon[FONT_ID_ZSYS], COLOR_WHITE, make_i2(50, 50), assets->str[STR_ENDING_SACRIFICE]);
+            SDL_RenderCopy(viewport->renderer, assets->tex[T_UI_ATLAS], &(SDL_Rect){0, PICTURE_WIN_SACRIFICE_SRC_Y, PICTURE_SRC_W, PICTURE_SRC_H}, &PICTURE_DST);
+            DrawTextScreen(viewport, assets->fon[FONT_ID_ZSYS], COLOR_WHITE, PIC_TXT_DST_LOC, assets->str[STR_ENDING_SACRIFICE]);
         }
+        if (game->event == EVNT_WIN_ALL_FRIENDS)
+        {
+            SDL_RenderCopy(viewport->renderer, assets->tex[T_UI_ATLAS], &(SDL_Rect){0, PICTURE_WIN_FRIENDS_SRC_Y, PICTURE_SRC_W, PICTURE_SRC_H}, &PICTURE_DST);
+            DrawTextScreen(viewport, assets->fon[FONT_ID_ZSYS], COLOR_WHITE, PIC_TXT_DST_LOC, assets->str[STR_ENDING_ALL_FRIENDS]);
+        }
+    }
+}
+
+/*-----------------------------------------------------------*/
+/*-----------------------------------------------------------*/
+void RenderEvent
+(
+    u32 t_r,
+    Viewport* viewport, 
+    Game* game, 
+    Controller* controller, 
+    Particles* particles,
+    Assets* assets,
+    Menu* menu,
+    zGrid* world
+)/*-----------------------------------------------------------*/
+{/*-----------------------------------------------------------*/
+    if (game->event == EVNT_INTRO)
+    {
+        SDL_SetRenderTarget(viewport->renderer, viewport->render_layer[ZSDL_RENDERLAYER_UI]);
+        DrawTextScreen(viewport, assets->fon[FONT_ID_ZSYS], COLOR_WHITE, PIC_TXT_DST_LOC, assets->str[STR_INTRO]);
+        SDL_RenderCopy(viewport->renderer, assets->tex[T_UI_ATLAS], &(SDL_Rect){0, PICTURE_INTRO_SRC_Y, PICTURE_SRC_W, PICTURE_SRC_H}, &PICTURE_DST);
     }
 }

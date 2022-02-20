@@ -96,7 +96,7 @@ void DrawTextScreen(Viewport* viewport, zFont* font, SDL_Color color, i2 loc, co
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvv ASSETBANK vvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #define ASSETBANK_TEXTURES_MAX 16
-#define ASSETBANK_SOUNDS_MAX 24
+#define ASSETBANK_SOUNDS_MAX 32
 #define ASSETBANK_MUSIC_MAX 1
 #define ASSETBANK_CURSORS_MAX 7
 #define ASSETBANK_SURFACES_MAX 1

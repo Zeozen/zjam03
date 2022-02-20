@@ -499,12 +499,18 @@ void MixSFX()
 		Mix_Volume(i, MIX_MAX_VOLUME/2);
 	Mix_VolumeMusic(255);
 
-	for (i32 i = SFX_MUS_BASS; i < ASSETBANK_SOUNDS_MAX; i++)
+	for (i32 i = SFX_MUS_BASS; i <= SFX_MUS_STAR; i++)
 		Mix_Volume(i, 0);
 
+	for (i32 i = SFX_FRIEND_01; i <= SFX_FRIEND_05; i++)
+		Mix_Volume(i, 50);
+
 	Mix_Volume(SFX_TAP, 230);
-	Mix_Volume(SFX_COLLECT_CRYSTAL, MIX_MAX_VOLUME/8);
-	Mix_Volume(SFX_COLLECT_FRIEND, MIX_MAX_VOLUME/8);
+	Mix_Volume(SFX_COLLECT_CRYSTAL, 200);
+	Mix_Volume(SFX_COLLECT_FRIEND, 30);
+	Mix_Volume(SFX_FRIEND_CRY, 100);
+	Mix_Volume(SFX_CRYSTAL_DIE, 5);
+	Mix_Volume(SFX_FRIEND_DIE, 40);
 
 }
 

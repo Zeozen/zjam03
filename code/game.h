@@ -70,6 +70,8 @@ typedef struct
     u32 anim_chara;
     r2 friend_pos[MAX_FRIENDS];
     r2 friend_pos_crumb[MAX_FRIENDS];
+    i32 friend_idx[MAX_FRIENDS];
+    i32 crystal_idx[MAX_CRYSTALS];
 } Game;
 
 typedef enum
@@ -81,8 +83,11 @@ typedef enum
     CRYSTAL,
     GOAL,
     CAMPFIRE,
-    SACRIFICE
+    SACRIFICE,
+    STAR_BG,
+    CAMP_BG
 } eTools;
+#define TOOLS_MAX 10
 
 typedef enum
 {
@@ -94,6 +99,18 @@ typedef enum
     EVNT_WIN_ALL_FRIENDS,
     EVNT_WIN_SACRIFICE_FRIENDS
 } eEvents;
+
+#define PICTURE_SRC_W 208
+#define PICTURE_SRC_H 160
+#define PICTURE_SRC_X 0
+#define PICTURE_INTRO_SRC_Y 256
+#define PICTURE_LOSE_SRC_Y 96
+#define PICTURE_WIN_CRYSTALS_SRC_Y 416
+#define PICTURE_WIN_FRIENDS_SRC_Y 576
+#define PICTURE_WIN_SACRIFICE_SRC_Y 736
+#define PICTURE_DST (SDL_Rect){88, 8, PICTURE_SRC_W, PICTURE_SRC_H}
+#define PIC_TXT_DST (SDL_Rect){1, 169, ZSDL_INTERNAL_WIDTH - 2, 47}
+#define PIC_TXT_DST_LOC make_i2(30, 169)
 
 
 

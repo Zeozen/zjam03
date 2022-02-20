@@ -48,7 +48,10 @@ typedef enum
     SFX_MUS_HARP,
     SFX_MUS_FLUT,
     SFX_MUS_PADS,
-    SFX_MUS_STAR
+    SFX_MUS_STAR,
+    SFX_FRIEND_DIE,
+    SFX_CRYSTAL_DIE,
+    SFX_FRIEND_CRY
 } SoundEffects;
 //paths
 #define SFX_PATH_HOVER "./assets/sound/hover.wav"
@@ -69,6 +72,9 @@ typedef enum
 #define SFX_PATH_MUS_FLUT "./assets/sound/sacrifice_bgm_flute.wav"
 #define SFX_PATH_MUS_PADS "./assets/sound/sacrifice_bgm_pad.wav"
 #define SFX_PATH_MUS_STAR "./assets/sound/sacrifice_bgm_twinkle.wav"
+#define SFX_PATH_FRIEND_DIE "./assets/sound/die_friend.wav"
+#define SFX_PATH_CRYSTAL_DIE "./assets/sound/die_crystal.wav"
+#define SFX_PATH_FRIEND_CRY "./assets/sound/cry_friend.wav"
 
 
 #define GUI_DESIGN_PATH "./assets/design/gui.ini"

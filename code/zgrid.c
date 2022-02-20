@@ -110,7 +110,7 @@ void DrawGrid(zGrid* grid, Viewport* viewport, Assets* assets, u32 anim)
 
 
 //draw grid background layer
-	SDL_SetRenderTarget(viewport->renderer, viewport->render_layer[ZSDL_RENDERLAYER_BACKGROUND]);
+	
 	//i2 origin_cam = PosToCam(grid->origin, 1.f, viewport);
 	// SDL_Rect whole_grid = {origin_cam.x, origin_cam.y, grid->width*WORLD_UNIT, grid->height*WORLD_UNIT};
 	// SDL_SetRenderDrawColor(viewport->renderer, 0xff, 0x00, 0x00, 0xff);
@@ -122,15 +122,26 @@ void DrawGrid(zGrid* grid, Viewport* viewport, Assets* assets, u32 anim)
 		for (i32 u = cel_0.x; u < min_1.x; u++)
 		{
 			i2 cel = make_i2(u, v);
+			SDL_Rect src;
 			if (ValidateCel(cel, grid))
 			{
 				i32 idx = CelToIdx(cel, grid);
-				SDL_Rect src = CelSpriteSource(idx, grid, SPRITELAYER_MG);
-				src.x = anim * WORLD_UNIT;
 				r2 cel_pos = CelToPos(cel, grid);
 				i2 cel_cam = PosToCam(cel_pos, 1.f, viewport);
 				SDL_Rect dst = {cel_cam.x, cel_cam.y, WORLD_UNIT, WORLD_UNIT};
-				SDL_RenderCopy(viewport->renderer, assets->tex[T_TILE_ATLAS], &src, &dst);
+
+				if (grid->cell[idx].sprite_bg)
+				{
+					SDL_SetRenderTarget(viewport->renderer, viewport->render_layer[ZSDL_RENDERLAYER_BACKGROUND]);
+					src = CelSpriteSource(idx, grid, SPRITELAYER_BG);
+					src.x = anim * WORLD_UNIT;
+					SDL_RenderCopy(viewport->renderer, assets->tex[T_TILE_ATLAS], &src, &dst);
+				}
+				
+					SDL_SetRenderTarget(viewport->renderer, viewport->render_layer[ZSDL_RENDERLAYER_ENTITIES]);
+					src = CelSpriteSource(idx, grid, SPRITELAYER_MG);
+					src.x = anim * WORLD_UNIT;
+					SDL_RenderCopy(viewport->renderer, assets->tex[T_TILE_ATLAS], &src, &dst);
 
 			}
 		}
@@ -220,11 +231,10 @@ SDL_Rect CelSpriteSource(i32 idx, zGrid* grid, i32 layer)
 	switch (layer)
 	{
 	case SPRITELAYER_BG:
-		// row = GET4IN8(grid->cell[idx].sprite_bg, BITPOS_SPRITE_ROW);
-		// col = GET4IN8(grid->cell[idx].sprite_bg, BITPOS_SPRITE_COL);
+		src.y = GET4IN8(grid->cell[idx].sprite_bg, BITPOS_SPRITE_ROW) * WORLD_UNIT;
 		break;
 	case SPRITELAYER_MG:
-			src.y = GET4IN8(grid->cell[idx].sprite_mg, BITPOS_SPRITE_ROW) * WORLD_UNIT;
+		src.y = GET4IN8(grid->cell[idx].sprite_mg, BITPOS_SPRITE_ROW) * WORLD_UNIT;
 		break;
 	case SPRITELAYER_FG:
 		// row = GET4IN8(grid->cell[idx].sprite_fg, BITPOS_SPRITE_ROW);
